@@ -13,6 +13,7 @@ Tieni sveglio il tuo PC Windows, nello spirito di [Amphetamine](https://apps.app
 ### Cosa farà
 
 - Tre modalità: PC acceso, PC e schermo accesi, spegni lo schermo ora lasciando il PC sveglio
+- Portatili: resta acceso anche a coperchio chiuso, solo in carica o anche a batteria. Modalità scrivania con monitor esterno, protezione se il portatile finisce chiuso in una borsa, impostazione di Windows sempre rimessa com'era
 - Durate rapide (15 min … 4 h), "fino alle HH:MM", "finché non lo spengo"
 - "…e poi": a fine sessione spegni lo schermo, blocca, sospendi, iberna o spegni, sempre con un conto alla rovescia annullabile
 - Regole automatiche: tieni sveglio mentre un programma è aperto, sei in chiamata, c'è un'app a schermo intero, il PC è in carica, è collegato un monitor esterno, c'è un download in corso…
@@ -38,6 +39,7 @@ Keep your Windows PC awake, in the spirit of [Amphetamine](https://apps.apple.co
 ### Planned features
 
 - Three modes: system awake, system and screen awake, screen off now with the system awake
+- Laptops: stay awake with the lid closed, plugged in only or on battery too. Desk mode with an external monitor, protection if the laptop ends up closed in a bag, and the Windows setting always put back as it was
 - Quick durations (15 min … 4 h), "until HH:MM", "until I turn it off"
 - "…and then": at the end of a session turn off the screen, lock, sleep, hibernate or shut down, always after a cancellable countdown
 - Automatic rules: stay awake while an app is running, you're on a call, a fullscreen app is showing, the PC is plugged in, an external monitor is connected, a download is in progress…
