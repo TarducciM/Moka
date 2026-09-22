@@ -1,6 +1,6 @@
 //! Le azioni, in un posto solo: le usano il pannello, il menu della tray, il
-//! clic sull'icona e la riga di comando. Ognuna cambia lo stato sotto lock e
-//! poi chiede di ridisegnare tray e pannello.
+//! clic sull'icona, la riga di comando e gli eventi di sistema. Ognuna cambia
+//! lo stato sotto lock e poi chiede di ridisegnare tray e pannello.
 //!
 //! Tray e menu si toccano **solo dal thread principale** ([`request_refresh`]
 //! ci passa sempre): le API della tray, chiamate da un altro thread, aspettano
@@ -9,13 +9,17 @@
 use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_notification::NotificationExt;
 
+use crate::actions;
 use crate::cli::Action;
-use crate::i18n::t;
+use crate::i18n::{t, tv, Lang};
+use crate::lidplan::Effect;
 use crate::popover;
 use crate::session::{Mode, Spec};
-use crate::state::{AppState, Core};
+use crate::state::{AppState, Core, Notice};
 use crate::sys;
+use crate::sysevents::SysEvent;
 use crate::tray::{self, MenuView, TrayMenu};
 
 pub const TRAY_ID: &str = "moka";
@@ -23,17 +27,65 @@ pub const TRAY_ID: &str = "moka";
 /// Esegue `f` sullo stato e poi aggiorna tutto. Restituisce ciò che `f` restituisce.
 pub fn with_core<T>(app: &AppHandle, f: impl FnOnce(&mut Core) -> T) -> T {
     let st = app.state::<AppState>();
-    let out = {
+    let (out, effects, notices, lang, modern_standby) = {
         let mut core = st.core.lock().unwrap();
-        f(&mut core)
+        let out = f(&mut core);
+        (
+            out,
+            std::mem::take(&mut core.effects),
+            std::mem::take(&mut core.notices),
+            core.lang,
+            core.lid.caps.modern_standby,
+        )
     };
     st.wake.notify_all();
     request_refresh(app, true);
+    run_effects(effects, modern_standby);
+    show_notices(app, lang, notices);
     out
 }
 
-pub fn start(app: &AppHandle, mode: Option<Mode>, spec: Option<Spec>) {
-    with_core(app, |c| c.start(mode, spec, sys::now()));
+/// Le azioni sul sistema, fuori dal lock e su un thread a parte: una
+/// sospensione ritorna solo al risveglio.
+pub fn run_effects(effects: Vec<Effect>, modern_standby: bool) {
+    if effects.is_empty() {
+        return;
+    }
+    std::thread::spawn(move || {
+        for effect in effects {
+            match effect {
+                Effect::Lock => actions::lock(),
+                Effect::Perform(act) => {
+                    if let Err(err) = actions::perform(act, modern_standby) {
+                        eprintln!("moka: {act:?} non eseguita: {err}");
+                    }
+                }
+            }
+        }
+    });
+}
+
+fn show_notices(app: &AppHandle, lang: Lang, notices: Vec<Notice>) {
+    for notice in notices {
+        match notice {
+            Notice::BatteryStopped(percent) => {
+                let _ = app
+                    .notification()
+                    .builder()
+                    .title(t(lang, "notify.battery_title"))
+                    .body(tv(
+                        lang,
+                        "notify.battery_body",
+                        &[("percent", &percent.to_string())],
+                    ))
+                    .show();
+            }
+        }
+    }
+}
+
+pub fn start(app: &AppHandle, mode: Option<Mode>, spec: Option<Spec>, lid: Option<bool>) {
+    with_core(app, |c| c.start(mode, spec, lid, sys::now()));
 }
 
 pub fn stop(app: &AppHandle) {
@@ -46,6 +98,14 @@ pub fn toggle(app: &AppHandle) {
 
 pub fn set_mode(app: &AppHandle, mode: Mode) {
     with_core(app, |c| c.set_mode(mode, sys::now()));
+}
+
+pub fn set_lid(app: &AppHandle, on: bool) {
+    with_core(app, |c| c.set_lid(on, sys::now()));
+}
+
+pub fn on_sys_event(app: &AppHandle, event: SysEvent) {
+    with_core(app, |c| c.on_sys_event(event, sys::now()));
 }
 
 /// Spegne lo schermo lasciando il PC sveglio. L'attesa prima di spegnere non
@@ -66,12 +126,14 @@ pub fn screen_off(app: &AppHandle) {
     });
 }
 
-/// Esci: la sessione finisce davvero (non viene ripresa al prossimo avvio).
+/// Esci: la sessione finisce davvero (non viene ripresa al prossimo avvio) e
+/// l'impostazione del coperchio torna com'era.
 pub fn quit(app: &AppHandle) {
     {
         let st = app.state::<AppState>();
         let mut core = st.core.lock().unwrap();
         core.stop(sys::now());
+        core.shutdown();
     }
     app.exit(0);
 }
@@ -85,12 +147,14 @@ pub fn apply_cli(app: &AppHandle, action: Action, from_second_instance: bool) {
                 show_popover_at_tray(app);
             }
         }
-        Action::Start { mode, spec } => start(app, mode, spec),
+        Action::Start { mode, spec, lid } => start(app, mode, spec, lid),
         Action::Off => stop(app),
         Action::Toggle => toggle(app),
         Action::ScreenOff => screen_off(app),
         Action::Quit => quit(app),
         Action::Autostart(enable) => set_autostart(app, enable),
+        // Gestita in main.rs, prima di avviare Tauri: qui non arriva mai.
+        Action::RestoreLid => {}
     }
 }
 
@@ -157,9 +221,9 @@ fn refresh(app: &AppHandle, emit: bool) {
         ui.tooltip = view.tooltip.clone();
     }
 
-    let menu_key = (lang, durations);
+    let menu_key = (lang, durations, view.dto.lid_row);
     if ui.menu_key.as_ref() != Some(&menu_key) {
-        match TrayMenu::build(app, lang, &menu_key.1) {
+        match TrayMenu::build(app, lang, &menu_key.1, menu_key.2) {
             Ok(menu) => {
                 let _ = tray_icon.set_menu(Some(menu.menu.clone()));
                 ui.menu = Some(menu);
@@ -169,7 +233,7 @@ fn refresh(app: &AppHandle, emit: bool) {
             Err(err) => eprintln!("moka: menu non costruito: {err}"),
         }
     }
-    let menu_view = (view.status.clone(), view.active, view.display);
+    let menu_view = (view.status.clone(), view.active, view.display, view.dto.lid);
     if ui.menu_view.as_ref() != Some(&menu_view) {
         if let Some(menu) = &ui.menu {
             menu.update(
@@ -178,6 +242,7 @@ fn refresh(app: &AppHandle, emit: bool) {
                     status: &view.status,
                     active: view.active,
                     display: view.display,
+                    lid: view.dto.lid,
                 },
             );
         }

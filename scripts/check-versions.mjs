@@ -1,6 +1,7 @@
 // La versione vive in tre posti (package.json, Cargo.toml, tauri.conf.json) più
-// Cargo.lock: devono dire tutti la stessa cosa. Una versione disallineata è una
-// versione bugiarda, e l'updater (dalla 0.3) confronta proprio quella.
+// i due lock (package-lock.json, Cargo.lock): devono dire tutti la stessa
+// cosa. Una versione disallineata è una versione bugiarda, e l'updater (dalla
+// 0.3) confronta proprio quella.
 
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -11,6 +12,7 @@ const read = (p) => readFileSync(join(root, p), "utf8");
 
 const versions = {
   "package.json": JSON.parse(read("package.json")).version,
+  "package-lock.json": JSON.parse(read("package-lock.json")).version,
   "src-tauri/tauri.conf.json": JSON.parse(read("src-tauri/tauri.conf.json")).version,
   "src-tauri/Cargo.toml": read("src-tauri/Cargo.toml").match(/^version\s*=\s*"([^"]+)"/m)?.[1],
   "src-tauri/Cargo.lock": read("src-tauri/Cargo.lock").match(

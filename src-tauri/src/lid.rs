@@ -84,7 +84,19 @@ pub fn read(scheme: &GUID) -> Option<LidAction> {
 
 /// Scrive i valori indicati (`None` lascia com'è) e riattiva lo schema:
 /// senza `PowerSetActiveScheme` la modifica non ha effetto subito (trappola 25).
+/// Da usare solo sullo schema **attivo**: riattivarne un altro lo renderebbe attivo.
 pub fn write(scheme: &GUID, ac: Option<u32>, dc: Option<u32>) -> Result<(), WIN32_ERROR> {
+    write_values(scheme, ac, dc)?;
+    activate(scheme)
+}
+
+/// Riapplica lo schema, così le modifiche hanno effetto subito.
+pub fn activate(scheme: &GUID) -> Result<(), WIN32_ERROR> {
+    to_result(unsafe { PowerSetActiveScheme(None, Some(scheme)) })
+}
+
+/// Scrive i valori senza riattivare lo schema (vale per qualunque schema).
+pub fn write_values(scheme: &GUID, ac: Option<u32>, dc: Option<u32>) -> Result<(), WIN32_ERROR> {
     unsafe {
         if let Some(v) = ac {
             to_result(PowerWriteACValueIndex(
@@ -104,7 +116,7 @@ pub fn write(scheme: &GUID, ac: Option<u32>, dc: Option<u32>) -> Result<(), WIN3
                 v,
             )))?;
         }
-        to_result(PowerSetActiveScheme(None, Some(scheme)))
+        Ok(())
     }
 }
 

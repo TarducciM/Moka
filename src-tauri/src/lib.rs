@@ -1,13 +1,17 @@
 //! Moka: tieni sveglio il PC dalla tray.
 
+pub mod actions;
 pub mod capabilities;
 pub mod cli;
 pub mod i18n;
 pub mod lid;
+pub mod lidoverride;
+pub mod lidplan;
 pub mod power;
 pub mod session;
 pub mod settings;
 pub mod sys;
+pub mod sysevents;
 
 mod commands;
 mod control;
@@ -27,6 +31,20 @@ use crate::session::{Mode, Spec};
 use crate::settings::LeftClick;
 use crate::state::{AppState, Core, Paths, UiCache};
 
+/// L'identifier dell'app: la cartella dei dati è `%APPDATA%\<identifier>`.
+const IDENTIFIER: &str = "com.moka.app";
+
+/// `moka --restore-lid`: rimette l'impostazione del coperchio da un registro
+/// lasciato lì ed esce. Senza Tauri: lo lanciano `RunOnce` al prossimo
+/// accesso e il disinstallatore, quando Moka non è in esecuzione.
+pub fn restore_lid_and_exit() -> ! {
+    if let Some(appdata) = std::env::var_os("APPDATA") {
+        let dir = std::path::PathBuf::from(appdata).join(IDENTIFIER);
+        lidoverride::restore_from_disk(dir);
+    }
+    std::process::exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let startup = cli::parse(std::env::args().skip(1));
@@ -43,6 +61,7 @@ pub fn run() {
             Some(vec!["--autostart"]),
         ))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(Mutex::new(popover::PopoverState::default()))
         .invoke_handler(tauri::generate_handler![
             commands::get_state,
@@ -59,6 +78,9 @@ pub fn run() {
             commands::close_settings,
             commands::get_settings,
             commands::update_settings,
+            commands::set_lid,
+            commands::answer_lid,
+            commands::restore_lid_now,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -74,6 +96,7 @@ pub fn run() {
             let paths = Paths {
                 settings: dir.join("settings.json"),
                 state: dir.join("state.json"),
+                lid_log: dir.join(lidoverride::FILE_NAME),
             };
             let version = app.package_info().version.to_string();
             let core = Core::load(paths, version, sys::now());
@@ -126,6 +149,10 @@ pub fn run() {
                 let h = handle.clone();
                 sys::watch_taskbar_theme(move || control::request_refresh(&h, false));
             }
+            {
+                let h = handle.clone();
+                sysevents::spawn(move |event| control::on_sys_event(&h, event));
+            }
 
             control::apply_cli(&handle, startup.action.clone(), false);
 
@@ -152,15 +179,21 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("avvio di Moka")
-        .run(|app, event| {
-            if let RunEvent::ExitRequested { api, code, .. } = event {
+        .run(|app, event| match event {
+            RunEvent::ExitRequested { api, code, .. } => {
                 // Chiudere le Impostazioni non deve chiudere Moka: esce solo
                 // chi lo chiede esplicitamente (app.exit, con un codice).
                 if code.is_none() {
                     api.prevent_exit();
                 }
             }
-            let _ = app;
+            RunEvent::Exit => {
+                // Qualunque sia la strada per uscire, niente resta cambiato.
+                if let Some(st) = app.try_state::<AppState>() {
+                    st.core.lock().unwrap().shutdown();
+                }
+            }
+            _ => {}
         });
 }
 
@@ -168,7 +201,7 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
     let id = event.id.as_ref();
     match id {
         "toggle" => control::toggle(app),
-        "for:never" => control::start(app, None, Some(Spec::Never)),
+        "for:never" => control::start(app, None, Some(Spec::Never), None),
         "until" => {
             control::show_popover_at_tray(app);
             let _ = app.emit_to(popover::LABEL, "moka://focus-until", ());
@@ -188,6 +221,14 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
             };
             control::set_mode(app, next);
         }
+        "lid" => {
+            let st = app.state::<AppState>();
+            let current = {
+                let core = st.core.lock().unwrap();
+                core.session.map(|s| s.lid).unwrap_or(core.memory.last_lid)
+            };
+            control::set_lid(app, !current);
+        }
         "screen_off" => control::screen_off(app),
         "open" => control::show_popover_at_tray(app),
         "settings" => {
@@ -201,7 +242,7 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
         "quit" => control::quit(app),
         other => {
             if let Some(minutes) = other.strip_prefix("for:").and_then(|m| m.parse().ok()) {
-                control::start(app, None, Some(Spec::Minutes { minutes }));
+                control::start(app, None, Some(Spec::Minutes { minutes }), None);
             }
         }
     }
@@ -218,11 +259,14 @@ fn spawn_ticker(app: AppHandle) {
             let mut core = st.core.lock().unwrap();
             loop {
                 let now = sys::now();
-                let expired = core.expire_if_due(now);
+                let expired = core.on_tick(now);
                 let wait = core.next_wait(now);
                 let seen = core.generation;
+                let effects = std::mem::take(&mut core.effects);
+                let modern_standby = core.lid.caps.modern_standby;
                 drop(core);
-                control::request_refresh(&app, expired);
+                control::request_refresh(&app, expired || !effects.is_empty());
+                control::run_effects(effects, modern_standby);
                 core = st.core.lock().unwrap();
                 if core.generation == seen {
                     core = st.wake.wait_timeout(core, wait).unwrap().0;

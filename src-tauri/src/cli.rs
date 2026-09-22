@@ -13,6 +13,8 @@
 //! moka --off                spegne
 //! moka --screen-off         spegne subito lo schermo, il PC resta sveglio
 //! moka --quit               chiude Moka (la sessione finisce)
+//! moka --lid / --no-lid     questa sessione resta accesa (o no) a coperchio chiuso
+//! moka --restore-lid        rimette l'impostazione del coperchio com'era, poi esce
 //! ```
 //!
 //! L'eseguibile è un'app a finestre: niente output sul terminale (trappola 15).
@@ -27,12 +29,17 @@ pub enum Action {
     Start {
         mode: Option<Mode>,
         spec: Option<Spec>,
+        /// `None` = l'ultima scelta fatta nel pannello.
+        lid: Option<bool>,
     },
     Off,
     Toggle,
     ScreenOff,
     /// Chiude Moka: la sessione finisce e non viene ripresa.
     Quit,
+    /// Rimette l'impostazione del coperchio da un registro lasciato lì ed
+    /// esce, senza avviare l'app (lo usano `RunOnce` e il disinstallatore).
+    RestoreLid,
     /// Usato dall'installer (0.3): applica la scelta sull'avvio automatico ed esce.
     Autostart(bool),
 }
@@ -56,6 +63,7 @@ where
     let mut spec: Option<Spec> = None;
     let mut screen = false;
     let mut on = false;
+    let mut lid: Option<bool> = None;
     let mut explicit: Option<Action> = None;
     let mut from_autostart = false;
     let mut unknown = Vec::new();
@@ -90,6 +98,9 @@ where
             "--toggle" => explicit = Some(Action::Toggle),
             "--screen-off" => explicit = Some(Action::ScreenOff),
             "--quit" => explicit = Some(Action::Quit),
+            "--restore-lid" => explicit = Some(Action::RestoreLid),
+            "--lid" => lid = Some(true),
+            "--no-lid" => lid = Some(false),
             "--enable-autostart" => explicit = Some(Action::Autostart(true)),
             "--disable-autostart" => explicit = Some(Action::Autostart(false)),
             "--autostart" => from_autostart = true,
@@ -108,8 +119,8 @@ where
     } else {
         None
     };
-    let action = explicit.unwrap_or(if spec.is_some() || screen || on {
-        Action::Start { mode, spec }
+    let action = explicit.unwrap_or(if spec.is_some() || screen || on || lid.is_some() {
+        Action::Start { mode, spec, lid }
     } else {
         Action::None
     });
@@ -143,14 +154,16 @@ mod tests {
             action(&["--for", "2h"]),
             Action::Start {
                 mode: Some(Mode::System),
-                spec: Some(Spec::Minutes { minutes: 120 })
+                spec: Some(Spec::Minutes { minutes: 120 }),
+                lid: None,
             }
         );
         assert_eq!(
             action(&["--for=1h30m", "--screen"]),
             Action::Start {
                 mode: Some(Mode::Display),
-                spec: Some(Spec::Minutes { minutes: 90 })
+                spec: Some(Spec::Minutes { minutes: 90 }),
+                lid: None,
             }
         );
         assert_eq!(
@@ -160,28 +173,32 @@ mod tests {
                 spec: Some(Spec::Until {
                     hour: 18,
                     minute: 30
-                })
+                }),
+                lid: None,
             }
         );
         assert_eq!(
             action(&["--screen"]),
             Action::Start {
                 mode: Some(Mode::Display),
-                spec: None
+                spec: None,
+                lid: None,
             }
         );
         assert_eq!(
             action(&["--on"]),
             Action::Start {
                 mode: None,
-                spec: None
+                spec: None,
+                lid: None,
             }
         );
         assert_eq!(
             action(&["--forever"]),
             Action::Start {
                 mode: Some(Mode::System),
-                spec: Some(Spec::Never)
+                spec: Some(Spec::Never),
+                lid: None,
             }
         );
     }
@@ -193,8 +210,29 @@ mod tests {
         assert_eq!(action(&["--toggle"]), Action::Toggle);
         assert_eq!(action(&["--screen-off"]), Action::ScreenOff);
         assert_eq!(action(&["--quit"]), Action::Quit);
+        assert_eq!(action(&["--restore-lid"]), Action::RestoreLid);
         assert_eq!(action(&["--enable-autostart"]), Action::Autostart(true));
         assert_eq!(action(&["--disable-autostart"]), Action::Autostart(false));
+    }
+
+    #[test]
+    fn lid_flags() {
+        assert_eq!(
+            action(&["--for", "2h", "--lid"]),
+            Action::Start {
+                mode: Some(Mode::System),
+                spec: Some(Spec::Minutes { minutes: 120 }),
+                lid: Some(true)
+            }
+        );
+        assert_eq!(
+            action(&["--no-lid"]),
+            Action::Start {
+                mode: None,
+                spec: None,
+                lid: Some(false)
+            }
+        );
     }
 
     #[test]

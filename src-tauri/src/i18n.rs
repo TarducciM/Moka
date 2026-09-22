@@ -147,13 +147,32 @@ pub fn status_label(lang: Lang, session: Option<&Session>, now: Now) -> String {
     }
 }
 
-/// Tooltip dell'icona: "Moka · Solo il PC · ancora 1 h 12 min".
-pub fn tooltip(lang: Lang, session: Option<&Session>, now: Now) -> String {
+/// Tooltip dell'icona: "Moka · Solo il PC · ancora 1 h 12 min", con
+/// "anche a coperchio chiuso" quando Moka sta tenendo il coperchio.
+pub fn tooltip(lang: Lang, session: Option<&Session>, now: Now, lid_held: bool) -> String {
     let status = status_label(lang, session, now);
     match session {
         None => format!("Moka · {status}"),
+        Some(s) if lid_held => format!(
+            "Moka · {} · {} · {status}",
+            mode_label(lang, s.mode),
+            t(lang, "lid.tooltip")
+        ),
         Some(s) => format!("Moka · {} · {status}", mode_label(lang, s.mode)),
     }
+}
+
+/// "Sospendi", "Iberna"… per un valore dell'azione del coperchio.
+pub fn lid_action_label(lang: Lang, value: u32) -> String {
+    t(
+        lang,
+        match value {
+            0 => "lid.action_0",
+            1 => "lid.action_1",
+            2 => "lid.action_2",
+            _ => "lid.action_3",
+        },
+    )
 }
 
 /// Il motivo che compare in `powercfg /requests`. Si fissa alla creazione

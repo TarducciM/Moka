@@ -82,6 +82,10 @@ pub struct Session {
     pub end: End,
     pub spec: Spec,
     pub started_wall_ms: i64,
+    /// Anche a coperchio chiuso (solo sui portatili, e solo se l'utente ha
+    /// acconsentito: vedi `Settings::effective_lid_mode`).
+    #[serde(default)]
+    pub lid: bool,
 }
 
 impl Session {
@@ -106,6 +110,7 @@ impl Session {
             end,
             spec,
             started_wall_ms: now.wall_ms,
+            lid: false,
         }
     }
 

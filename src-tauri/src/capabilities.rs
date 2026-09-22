@@ -86,3 +86,46 @@ pub fn execution_state() -> Option<u32> {
     };
     status.is_ok().then_some(state)
 }
+
+/// Quanti monitor **esterni** sono attivi. Si contano i percorsi di
+/// visualizzazione attivi la cui uscita non è il pannello interno
+/// (`INTERNAL`, `DISPLAYPORT_EMBEDDED`, `UDI_EMBEDDED`). I monitor USB
+/// (DisplayLink) contano come esterni. `0` se Windows non risponde.
+pub fn external_monitors() -> u32 {
+    use windows::Win32::Devices::Display::{
+        GetDisplayConfigBufferSizes, QueryDisplayConfig, DISPLAYCONFIG_MODE_INFO,
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_DISPLAYPORT_EMBEDDED,
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_INTERNAL, DISPLAYCONFIG_OUTPUT_TECHNOLOGY_UDI_EMBEDDED,
+        DISPLAYCONFIG_PATH_INFO, QDC_ONLY_ACTIVE_PATHS,
+    };
+    unsafe {
+        let (mut n_paths, mut n_modes) = (0u32, 0u32);
+        if GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &mut n_paths, &mut n_modes).is_err() {
+            return 0;
+        }
+        let mut paths = vec![DISPLAYCONFIG_PATH_INFO::default(); n_paths as usize];
+        let mut modes = vec![DISPLAYCONFIG_MODE_INFO::default(); n_modes as usize];
+        if QueryDisplayConfig(
+            QDC_ONLY_ACTIVE_PATHS,
+            &mut n_paths,
+            paths.as_mut_ptr(),
+            &mut n_modes,
+            modes.as_mut_ptr(),
+            None,
+        )
+        .is_err()
+        {
+            return 0;
+        }
+        paths.truncate(n_paths as usize);
+        paths
+            .iter()
+            .filter(|p| {
+                let t = p.targetInfo.outputTechnology;
+                t != DISPLAYCONFIG_OUTPUT_TECHNOLOGY_INTERNAL
+                    && t != DISPLAYCONFIG_OUTPUT_TECHNOLOGY_DISPLAYPORT_EMBEDDED
+                    && t != DISPLAYCONFIG_OUTPUT_TECHNOLOGY_UDI_EMBEDDED
+            })
+            .count() as u32
+    }
+}

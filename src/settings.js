@@ -15,6 +15,11 @@
   const durationsError = $("durations-error");
   const toast = $("toast");
   const leftClick = [...document.querySelectorAll('input[name="left-click"]')];
+  const lidModes = [...document.querySelectorAll('input[name="lid-mode"]')];
+  const backpack = $("backpack");
+  const deskMode = $("desk-mode");
+  const lockOnOpen = $("lock-on-open");
+  const batteryThreshold = $("battery-threshold");
   let toastTimer = null;
 
   async function fill(s) {
@@ -27,6 +32,45 @@
     for (const radio of leftClick) radio.checked = radio.value === s.leftClick;
     if (document.activeElement !== durations) durations.value = s.durationsText;
     $("version").textContent = I18n.t("settings.version", { version: s.version });
+
+    // Coperchio: solo sui portatili. Con un criterio aziendale si vede, ma è
+    // disattivato e lo dice.
+    $("lid-card").hidden = !s.laptop;
+    $("lid-policy").hidden = !s.policyManaged;
+    for (const el of $("lid-controls").querySelectorAll("input, select")) {
+      el.disabled = s.policyManaged;
+    }
+    for (const radio of lidModes) radio.checked = radio.value === s.lidMode;
+    $("backpack-field").hidden = s.lidMode !== "always";
+    fillSelect(backpack, s.backpackChoices, s.backpackMinutes);
+    deskMode.checked = s.deskMode;
+    lockOnOpen.checked = s.lockOnLidOpen;
+    $("windows-lid").textContent = s.windowsLid;
+    $("lid-held").hidden = !s.lidHeld;
+    $("restore-lid").hidden = !s.lidHeld;
+    $("lid-error").hidden = !s.lidError;
+    $("lid-error").textContent = s.lidError || "";
+
+    $("battery-card").hidden = !s.hasBattery;
+    fillSelect(batteryThreshold, s.batteryChoices, s.batteryThreshold);
+  }
+
+  // Le opzioni (e le loro etichette tradotte) arrivano da Rust: la pagina
+  // non sa quali valori sono ammessi.
+  function fillSelect(select, choices, value) {
+    const key = choices.map((c) => c.value + ":" + c.label).join("|");
+    if (select.dataset.key !== key) {
+      select.dataset.key = key;
+      select.replaceChildren(
+        ...choices.map((c) => {
+          const option = document.createElement("option");
+          option.value = String(c.value);
+          option.textContent = c.label;
+          return option;
+        }),
+      );
+    }
+    select.value = String(value);
   }
 
   async function save(patch) {
@@ -53,6 +97,18 @@
   for (const radio of leftClick) {
     radio.addEventListener("change", () => save({ leftClick: radio.value }));
   }
+  for (const radio of lidModes) {
+    radio.addEventListener("change", () => save({ lidMode: radio.value }));
+  }
+  backpack.addEventListener("change", () => save({ backpackMinutes: Number(backpack.value) }));
+  deskMode.addEventListener("change", () => save({ deskMode: deskMode.checked }));
+  lockOnOpen.addEventListener("change", () => save({ lockOnLidOpen: lockOnOpen.checked }));
+  batteryThreshold.addEventListener("change", () =>
+    save({ batteryThreshold: Number(batteryThreshold.value) }),
+  );
+  $("restore-lid").addEventListener("click", async () => {
+    await fill(await invoke("restore_lid_now"));
+  });
 
   async function saveDurations() {
     try {
@@ -85,11 +141,9 @@
     if (event.key === "Escape") invoke("close_settings");
   });
 
-  // Lingua cambiata altrove: si ridisegna.
-  listen("moka://state", async (event) => {
-    if (event.payload.lang !== I18n.lang) {
-      await fill(await invoke("get_settings"));
-    }
+  // Lo stato è cambiato altrove (lingua, sessione, coperchio): si ridisegna.
+  listen("moka://state", async () => {
+    await fill(await invoke("get_settings"));
   });
 
   (async () => {

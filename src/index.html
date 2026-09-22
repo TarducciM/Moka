@@ -34,6 +34,30 @@
         <button type="button" class="btn btn-small" id="welcome-ok" data-i18n="popover.welcome_ok"></button>
       </section>
 
+      <section class="welcome" id="lid-question" hidden aria-labelledby="lid-question-title">
+        <h2 class="welcome-title" id="lid-question-title" data-i18n="lid.question_title"></h2>
+        <p class="welcome-body" data-i18n="lid.question_body"></p>
+        <div class="choices" role="radiogroup" aria-labelledby="lid-question-title">
+          <label class="radio">
+            <input type="radio" name="lid-answer" value="ac" checked />
+            <span data-i18n="lid.mode_ac"></span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="lid-answer" value="always" />
+            <span data-i18n="lid.mode_always"></span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="lid-answer" value="windows" />
+            <span data-i18n="lid.mode_windows"></span>
+          </label>
+        </div>
+        <label class="check">
+          <input type="checkbox" id="lid-desk" />
+          <span data-i18n="lid.desk"></span>
+        </label>
+        <button type="button" class="btn btn-small" id="lid-confirm" data-i18n="lid.confirm"></button>
+      </section>
+
       <section class="group" aria-labelledby="keep-on-label">
         <h2 class="label" id="keep-on-label" data-i18n="popover.keep_on"></h2>
         <div class="segmented" role="radiogroup" aria-labelledby="keep-on-label">
@@ -53,6 +77,26 @@
           </button>
         </div>
         <p class="hint" id="mode-hint"></p>
+        <div class="lid-row" id="lid-row" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 17.5h16" />
+            <path d="M6 17.5 8 7h8l2 10.5" />
+          </svg>
+          <span class="lid-row-text">
+            <span id="lid-row-label" data-i18n="lid.row"></span>
+            <small id="lid-row-hint"></small>
+          </span>
+          <button
+            type="button"
+            class="switch switch-small"
+            id="lid-switch"
+            role="switch"
+            aria-checked="false"
+            aria-labelledby="lid-row-label"
+          >
+            <span class="switch-knob"></span>
+          </button>
+        </div>
       </section>
 
       <section class="group" aria-labelledby="how-long-label">

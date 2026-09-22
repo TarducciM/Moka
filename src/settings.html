@@ -46,6 +46,61 @@
         </div>
       </section>
 
+      <section class="card" id="lid-card" hidden aria-labelledby="lid-title">
+        <h2 id="lid-title" data-i18n="settings.section_lid"></h2>
+        <p class="notice" id="lid-policy" data-i18n="settings.lid_policy" hidden></p>
+        <div id="lid-controls">
+          <div class="field-block" role="radiogroup" aria-labelledby="lid-intro">
+            <span id="lid-intro" data-i18n="settings.lid_intro"></span>
+            <label class="radio">
+              <input type="radio" name="lid-mode" value="windows" />
+              <span data-i18n="settings.lid_windows"></span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="lid-mode" value="ac" />
+              <span data-i18n="settings.lid_ac"></span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="lid-mode" value="always" />
+              <span data-i18n="settings.lid_always"></span>
+            </label>
+            <div class="sub-field" id="backpack-field">
+              <label for="backpack" data-i18n="settings.backpack"></label>
+              <select id="backpack"></select>
+              <small data-i18n="settings.backpack_hint"></small>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-text" for="desk-mode">
+              <span data-i18n="settings.desk_mode"></span>
+            </label>
+            <input type="checkbox" id="desk-mode" />
+          </div>
+          <div class="field">
+            <label class="field-text" for="lock-on-open">
+              <span data-i18n="settings.lock_on_open"></span>
+            </label>
+            <input type="checkbox" id="lock-on-open" />
+          </div>
+        </div>
+        <div class="lid-status">
+          <p id="windows-lid"></p>
+          <p class="notice" id="lid-held" data-i18n="settings.windows_held" hidden></p>
+          <p class="error" id="lid-error" role="alert" hidden></p>
+          <button type="button" class="btn btn-small" id="restore-lid" data-i18n="settings.restore_now" hidden></button>
+          <small data-i18n="settings.lid_shared"></small>
+        </div>
+      </section>
+
+      <section class="card" id="battery-card" hidden aria-labelledby="battery-title">
+        <h2 id="battery-title" data-i18n="settings.section_battery"></h2>
+        <div class="field">
+          <label for="battery-threshold" data-i18n="settings.battery_threshold"></label>
+          <select id="battery-threshold"></select>
+        </div>
+        <p class="hint" data-i18n="settings.battery_hint"></p>
+      </section>
+
       <section class="card" aria-labelledby="durations-title">
         <h2 id="durations-title" data-i18n="settings.section_durations"></h2>
         <label for="durations" data-i18n="settings.durations_label"></label>

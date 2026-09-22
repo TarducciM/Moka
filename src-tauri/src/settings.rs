@@ -19,6 +19,13 @@ use crate::session::{parse_duration, Mode, Now, Session, Spec, MAX_MINUTES};
 
 pub const DEFAULT_DURATIONS: [u32; 5] = [15, 30, 60, 120, 240];
 pub const MAX_DURATIONS: usize = 6;
+/// Protezione zaino: dopo quanti minuti, a batteria e a coperchio chiuso senza
+/// monitor, Moka fa ciò che Windows avrebbe fatto. 0 = mai.
+pub const BACKPACK_CHOICES: [u32; 6] = [0, 10, 15, 30, 60, 120];
+pub const DEFAULT_BACKPACK: u32 = 30;
+/// Soglia batteria in percentuale: sotto, la sessione finisce. 0 = spenta.
+pub const BATTERY_CHOICES: [u32; 8] = [0, 10, 15, 20, 25, 30, 40, 50];
+pub const DEFAULT_BATTERY: u32 = 20;
 
 /// Tolleranza nel riconoscere lo stesso avvio di Windows: copre le piccole
 /// correzioni dell'orologio (NTP) fra un salvataggio e la rilettura.
@@ -43,6 +50,19 @@ pub enum LeftClick {
     Toggle,
 }
 
+/// Durante una sessione, chiudendo il coperchio…
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum LidMode {
+    /// …il PC va in sospensione, come sempre: Moka non tocca niente.
+    Windows,
+    /// …resta acceso, solo se è in carica (consigliato).
+    #[default]
+    Ac,
+    /// …resta acceso anche a batteria.
+    Always,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
@@ -50,6 +70,17 @@ pub struct Settings {
     pub left_click: LeftClick,
     /// Durate rapide in minuti: ordinate, senza doppioni, al massimo 6.
     pub durations: Vec<u32>,
+    /// La domanda sul coperchio ha avuto risposta. Finché no, Moka non tocca
+    /// l'impostazione di Windows: non la cambia senza consenso.
+    pub lid_asked: bool,
+    pub lid_mode: LidMode,
+    /// Con un monitor esterno collegato, il coperchio chiuso non sospende mai
+    /// il PC, anche senza una sessione.
+    pub desk_mode: bool,
+    /// Alla riapertura del coperchio, se Moka l'aveva tenuto acceso, blocca il PC.
+    pub lock_on_lid_open: bool,
+    pub backpack_minutes: u32,
+    pub battery_threshold: u32,
 }
 
 impl Default for Settings {
@@ -58,6 +89,12 @@ impl Default for Settings {
             language: LangSetting::Auto,
             left_click: LeftClick::Popover,
             durations: DEFAULT_DURATIONS.to_vec(),
+            lid_asked: false,
+            lid_mode: LidMode::Ac,
+            desk_mode: false,
+            lock_on_lid_open: true,
+            backpack_minutes: DEFAULT_BACKPACK,
+            battery_threshold: DEFAULT_BATTERY,
         }
     }
 }
@@ -73,6 +110,24 @@ impl Settings {
                 .and_then(Value::as_array)
                 .map(|list| normalize_durations(list.iter().filter_map(Value::as_u64)))
                 .unwrap_or(d.durations),
+            lid_asked: bool_field(v, "lidAsked").unwrap_or(d.lid_asked),
+            lid_mode: field(v, "lidMode").unwrap_or(d.lid_mode),
+            desk_mode: bool_field(v, "deskMode").unwrap_or(d.desk_mode),
+            lock_on_lid_open: bool_field(v, "lockOnLidOpen").unwrap_or(d.lock_on_lid_open),
+            backpack_minutes: choice(v, "backpackMinutes", &BACKPACK_CHOICES)
+                .unwrap_or(d.backpack_minutes),
+            battery_threshold: choice(v, "batteryThreshold", &BATTERY_CHOICES)
+                .unwrap_or(d.battery_threshold),
+        }
+    }
+
+    /// Il modo del coperchio che vale davvero: finché la domanda non ha avuto
+    /// risposta, "come sempre".
+    pub fn effective_lid_mode(&self) -> LidMode {
+        if self.lid_asked {
+            self.lid_mode
+        } else {
+            LidMode::Windows
         }
     }
 
@@ -169,11 +224,13 @@ impl SavedSession {
 }
 
 /// Ciò che l'app ricorda fra un avvio e l'altro, a parte le impostazioni.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Memory {
     /// Ultima modalità scelta: la usa la prossima accensione.
     pub last_mode: Mode,
+    /// Ultima scelta di "anche a coperchio chiuso" nel pannello.
+    pub last_lid: bool,
     /// Ultima durata scelta: la usa l'accensione con un clic.
     pub last_spec: Spec,
     /// Il benvenuto al primo avvio è già stato chiuso.
@@ -181,10 +238,23 @@ pub struct Memory {
     pub session: Option<SavedSession>,
 }
 
+impl Default for Memory {
+    fn default() -> Self {
+        Memory {
+            last_mode: Mode::default(),
+            last_lid: true,
+            last_spec: Spec::default(),
+            welcome_done: false,
+            session: None,
+        }
+    }
+}
+
 impl Memory {
     pub fn from_value(v: &Value) -> Memory {
         Memory {
             last_mode: field(v, "lastMode").unwrap_or_default(),
+            last_lid: bool_field(v, "lastLid").unwrap_or(true),
             last_spec: field(v, "lastSpec")
                 .filter(|s| spec_is_valid(*s))
                 .unwrap_or_default(),
@@ -213,6 +283,18 @@ pub fn spec_is_valid(spec: Spec) -> bool {
     }
 }
 
+fn bool_field(v: &Value, key: &str) -> Option<bool> {
+    v.get(key).and_then(Value::as_bool)
+}
+
+/// Un numero accettato solo se è una delle scelte offerte dall'interfaccia.
+fn choice(v: &Value, key: &str, allowed: &[u32]) -> Option<u32> {
+    v.get(key)
+        .and_then(Value::as_u64)
+        .and_then(|n| u32::try_from(n).ok())
+        .filter(|n| allowed.contains(n))
+}
+
 fn field<T: serde::de::DeserializeOwned>(v: &Value, key: &str) -> Option<T> {
     v.get(key)
         .and_then(|x| serde_json::from_value(x.clone()).ok())
@@ -228,7 +310,7 @@ fn read_json(path: &Path) -> Value {
 
 /// Scrive su un file temporaneo, lo forza su disco e poi lo rinomina: un
 /// crash a metà lascia il file vecchio, mai uno troncato.
-fn write_json_atomic(path: &Path, value: &Value) -> std::io::Result<()> {
+pub(crate) fn write_json_atomic(path: &Path, value: &Value) -> std::io::Result<()> {
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir)?;
     }
@@ -267,6 +349,38 @@ mod tests {
     }
 
     #[test]
+    fn lid_settings_are_normalized() {
+        let s = Settings::from_value(&json!({
+            "lidAsked": true,
+            "lidMode": "always",
+            "deskMode": "sì",
+            "lockOnLidOpen": false,
+            "backpackMinutes": 7,
+            "batteryThreshold": 10
+        }));
+        assert!(s.lid_asked);
+        assert_eq!(s.lid_mode, LidMode::Always);
+        assert!(!s.desk_mode, "una stringa non è un booleano");
+        assert!(!s.lock_on_lid_open);
+        assert_eq!(
+            s.backpack_minutes, DEFAULT_BACKPACK,
+            "7 non è fra le scelte"
+        );
+        assert_eq!(s.battery_threshold, 10);
+    }
+
+    #[test]
+    fn lid_mode_needs_consent() {
+        let mut s = Settings {
+            lid_mode: LidMode::Always,
+            ..Settings::default()
+        };
+        assert_eq!(s.effective_lid_mode(), LidMode::Windows);
+        s.lid_asked = true;
+        assert_eq!(s.effective_lid_mode(), LidMode::Always);
+    }
+
+    #[test]
     fn durations_are_normalized() {
         let s = Settings::from_value(&json!({
             "durations": [240, 15, 15, 0, -3, 99999999, "30", 45, 60, 90, 120, 180]
@@ -293,6 +407,7 @@ mod tests {
             },
             spec: Spec::Minutes { minutes: 60 },
             started_wall_ms: 1_000_000,
+            lid: true,
         }
     }
 
@@ -341,6 +456,7 @@ mod tests {
         let path = dir.join("state.json");
         let m = Memory {
             last_mode: Mode::Display,
+            last_lid: false,
             last_spec: Spec::Until {
                 hour: 18,
                 minute: 30,

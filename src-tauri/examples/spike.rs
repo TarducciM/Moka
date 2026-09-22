@@ -77,6 +77,7 @@ fn info() {
     if let Some(p) = power.battery_percent {
         println!("batteria          {p}%");
     }
+    println!("monitor esterni   {}", capabilities::external_monitors());
 
     match lid::active_scheme().and_then(|s| lid::read(&s).map(|a| (s, a))) {
         Some((scheme, action)) => {

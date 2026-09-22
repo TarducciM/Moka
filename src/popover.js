@@ -15,6 +15,10 @@
   const untilForm = $("until-form");
   const untilInput = $("until");
   const welcome = $("welcome");
+  const lidQuestion = $("lid-question");
+  const lidRow = $("lid-row");
+  const lidSwitch = $("lid-switch");
+  const lidHint = $("lid-row-hint");
   const modeButtons = [...document.querySelectorAll("[data-mode]")];
 
   let state = null;
@@ -65,6 +69,12 @@
     untilForm.classList.toggle("is-active", Boolean(untilActive));
 
     welcome.hidden = !s.welcome;
+
+    // Coperchio: la domanda finché non ha risposta, poi la riga per la sessione.
+    lidQuestion.hidden = !s.lidQuestion;
+    lidRow.hidden = !s.lidRow;
+    lidSwitch.setAttribute("aria-checked", String(s.lid));
+    lidHint.textContent = I18n.t(s.lidMode === "always" ? "lid.row_hint_always" : "lid.row_hint_ac");
     fit();
   }
 
@@ -157,6 +167,11 @@
   $("screen-off").addEventListener("click", () => act("screen_off"));
   $("open-settings").addEventListener("click", () => act("open_settings"));
   $("welcome-ok").addEventListener("click", () => act("dismiss_welcome"));
+  lidSwitch.addEventListener("click", () => act("set_lid", { on: !state.lid }));
+  $("lid-confirm").addEventListener("click", () => {
+    const mode = document.querySelector('input[name="lid-answer"]:checked').value;
+    act("answer_lid", { mode, desk: $("lid-desk").checked });
+  });
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") invoke("hide_popover");

@@ -83,16 +83,24 @@ pub struct TrayMenu {
     status: MenuItem<Wry>,
     toggle: MenuItem<Wry>,
     screen: CheckMenuItem<Wry>,
+    /// Solo sui portatili in cui l'utente ha acconsentito.
+    lid: Option<CheckMenuItem<Wry>>,
 }
 
 pub struct MenuView<'a> {
     pub status: &'a str,
     pub active: bool,
     pub display: bool,
+    pub lid: bool,
 }
 
 impl TrayMenu {
-    pub fn build(app: &AppHandle, lang: Lang, durations: &[u32]) -> tauri::Result<TrayMenu> {
+    pub fn build(
+        app: &AppHandle,
+        lang: Lang,
+        durations: &[u32],
+        lid_row: bool,
+    ) -> tauri::Result<TrayMenu> {
         let status = MenuItem::with_id(app, "status", "", false, None::<&str>)?;
         let toggle = MenuItem::with_id(app, "toggle", t(lang, "menu.start"), true, None::<&str>)?;
 
@@ -134,6 +142,18 @@ impl TrayMenu {
             false,
             None::<&str>,
         )?;
+        let lid = if lid_row {
+            Some(CheckMenuItem::with_id(
+                app,
+                "lid",
+                t(lang, "menu.also_lid"),
+                true,
+                false,
+                None::<&str>,
+            )?)
+        } else {
+            None
+        };
         let screen_off = MenuItem::with_id(
             app,
             "screen_off",
@@ -151,28 +171,30 @@ impl TrayMenu {
         )?;
         let quit = MenuItem::with_id(app, "quit", t(lang, "menu.quit"), true, None::<&str>)?;
 
-        let menu = Menu::with_items(
-            app,
-            &[
-                &status,
-                &PredefinedMenuItem::separator(app)?,
-                &toggle,
-                &start_for,
-                &screen,
-                &screen_off,
-                &PredefinedMenuItem::separator(app)?,
-                &open,
-                &settings,
-                &PredefinedMenuItem::separator(app)?,
-                &quit,
-            ],
-        )?;
+        let sep_1 = PredefinedMenuItem::separator(app)?;
+        let sep_2 = PredefinedMenuItem::separator(app)?;
+        let sep_3 = PredefinedMenuItem::separator(app)?;
+        let mut items: Vec<&dyn tauri::menu::IsMenuItem<Wry>> =
+            vec![&status, &sep_1, &toggle, &start_for, &screen];
+        if let Some(lid) = &lid {
+            items.push(lid);
+        }
+        items.extend([
+            &screen_off as &dyn tauri::menu::IsMenuItem<Wry>,
+            &sep_2,
+            &open,
+            &settings,
+            &sep_3,
+            &quit,
+        ]);
+        let menu = Menu::with_items(app, &items)?;
 
         Ok(TrayMenu {
             menu,
             status,
             toggle,
             screen,
+            lid,
         })
     }
 
@@ -187,6 +209,9 @@ impl TrayMenu {
             },
         ));
         let _ = self.screen.set_checked(view.display);
+        if let Some(lid) = &self.lid {
+            let _ = lid.set_checked(view.lid);
+        }
     }
 }
 

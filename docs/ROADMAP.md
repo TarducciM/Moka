@@ -1,6 +1,6 @@
 # Moka — piano di progetto
 
-> **Stato: sviluppo, 0.0.1.** Il nucleo della 0.1 è scritto e verificato su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md).
+> **Stato: sviluppo, 0.0.2.** Il nucleo della 0.1 e tutta la parte della 0.2 che non dipende dallo spike sono scritti e verificati su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md). Lo spike decide **quali richieste** tenere a coperchio chiuso, non come si cambia e si rimette l'impostazione di Windows, che è già fatto e provato.
 >
 > Questo file è il punto di ripresa: chi riprende il lavoro, da qualunque PC, parte da qui. Va aggiornato a ogni passaggio significativo, insieme a `CHANGELOG.md`.
 >
@@ -54,7 +54,7 @@ Serve un PC Windows con la toolchain Tauri. **Il primo comando è `hostname`**, 
 | Data | Macchina (`hostname`) | Rust | Cosa è stato fatto |
 |---|---|---|---|
 | 2026-09-21 | PC-MIKY | no | solo progettazione, nessun codice |
-| 2026-09-22 | LPT-MIKI (Acer Nitro ANV16S-41, portatile, standby moderno connesso, niente S3) | 1.98, MSVC, VS Build Tools 2022, Node 24, WebView2 153 | pianificazione chiusa, check della macchina, nucleo della 0.1, CI, strumento per lo spike |
+| 2026-09-22 | LPT-MIKI (Acer Nitro ANV16S-41, portatile, standby moderno connesso, niente S3) | 1.98, MSVC, VS Build Tools 2022, Node 24, WebView2 153 | pianificazione chiusa, check della macchina, nucleo della 0.1, CI, strumento per lo spike; poi 0.0.2: coperchio (modifica e ripristino, scrivania, zaino), eventi di sistema, soglia batteria |
 
 ---
 
@@ -92,6 +92,20 @@ Serve un PC Windows con la toolchain Tauri. **Il primo comando è `hostname`**, 
 | Durate | Da 1 minuto a 7 giorni. Si scrivono come `45m`, `2h`, `1h30m`, `1.5h`, `90`. |
 | WebView2 senza GPU | `--disable-gpu` nelle finestre di Moka. Il pannello è statico e non ha bisogno dell'accelerazione, mentre il processo GPU di WebView2 pesava 73 MB privati a riposo; senza, 14 MB. Il pannello si disegna identico (verificato con uno screenshot della build di release). |
 
+### Decisioni prese scrivendo la parte portatili (0.0.2, 2026-09-22)
+
+| Tema | Decisione |
+|---|---|
+| Consenso | Finché la domanda sul coperchio non ha risposta, Moka non tocca niente, nemmeno con la modalità scrivania (che si sceglie nella stessa domanda). Scegliere un'opzione nelle Impostazioni vale come risposta. |
+| "Anche a coperchio chiuso" | Come la modalità, **resta** da una sessione all'altra (predefinito: sì). La riga compare nel pannello solo se l'utente ha scelto "in carica" o "anche a batteria". Anche il menu della tray ha la voce. |
+| "Ripristina ora" | Rimette subito l'impostazione di Windows, toglie il coperchio alla sessione in corso (che continua) e sospende ogni modifica, modalità scrivania compresa, **fino alla prossima sessione**: altrimenti Moka la riapplicherebbe un attimo dopo. |
+| Soglia batteria | Scatta **scendendo** sotto il valore (predefinito 20%, scelte da 10 a 50, o mai). Una sessione avviata con la batteria già sotto la soglia non si interrompe: l'ha chiesta l'utente, sapendolo. Si riarma quando si torna in carica o sopra la soglia. Lo dice con una notifica. |
+| Protezione zaino | Scelte: 10, 15, 30 (predefinito), 60, 120 minuti, o mai. Vale solo con "anche a batteria", a coperchio chiuso e senza monitor esterni. |
+| `moka --restore-lid` | Gestito in `main.rs` **prima** di avviare Tauri: niente finestre e niente single-instance. Al prossimo accesso `RunOnce` e l'avvio automatico partono insieme, e con il single-instance uno dei due inoltrerebbe l'altro e l'app potrebbe non partire. |
+| All'avvio | Se c'è un registro lasciato lì, prima si rimette tutto com'era, **poi** (se la sessione riprende) si riapplica. Invertendo l'ordine, Moka leggerebbe "non fare nulla" come valore originale e a fine sessione lo "rimetterebbe", lasciando l'impostazione cambiata per sempre. Verificato: dopo crash e riapertura il registro dice ancora "sospendi". |
+| Richieste a coperchio chiuso | Con la modifica attiva su un PC con standby moderno Moka tiene anche `ExecutionRequired` (ipotesi 1 dello spike). Non costa niente; lo spike dirà se basta o se è inutile. |
+| Sospendere da codice | `SetSuspendState`; se su standby moderno viene rifiutata, il ripiego è spegnere lo schermo senza richieste attive (ipotesi 4 dello spike). |
+
 **Misure della build di release 0.0.1** (LPT-MIKI, 2026-09-22):
 
 - eseguibile 3,5 MB; installer NSIS 1,3 MB; MSI 1,8 MB;
@@ -116,6 +130,8 @@ Il "check veloce" prima di scrivere codice, fatto sulla macchina e non a memoria
 | Scrivere l'azione del coperchio senza amministratore | **Funziona** su questo account (amministratore con token non elevato). Su un account standard vero resta da provare | `spike lid-write-check` (riscrive il valore che c'è già: non cambia niente) |
 | Vedere le richieste senza amministratore | **Si può**: `CallNtPowerInformation(SystemExecutionState)` riflette le richieste attive (0x0 → 0x3 con SYSTEM+DISPLAY → 0x0 al rilascio). Quindi "Moka tiene davvero sveglio il PC" si verifica anche senza `powercfg /requests` | `spike info` |
 | Moka 0.0.1 in funzione | CLI inoltrata all'istanza aperta, scadenza, rilascio dopo chiusura forzata, ripresa, `--quit`, Impostazioni, lingua, contrasti: tutto in `test.md` | `test.md` |
+| Monitor esterni | **2** (due 2560×1440; il pannello interno non risulta attivo) | `spike info` |
+| Moka 0.0.2, coperchio | Modifica "solo in carica" e "anche a batteria", ritorno com'era a fine sessione, all'uscita e con "Ripristina ora"; crash con `RunOnce` e con la riapertura; scelta dell'utente rispettata; modalità scrivania senza sessione. Tutto provato sull'impostazione **vera**, letta ogni volta con `spike info`: dettagli in `test.md` | `test.md` |
 
 ---
 
@@ -427,19 +443,20 @@ Ogni passaggio: bump di patch più voce nel `CHANGELOG`. Minor alle tappe qui so
 
 ### 0.2.0 — portatili e coperchio chiuso
 
-- [ ] `sysevents.rs`: finestra nascosta su un thread dedicato, che riceve stato del coperchio, fonte di alimentazione, batteria, cambi di monitor e di piano energetico
-- [ ] `lid.rs`: lettura e scrittura dell'azione del coperchio, registro delle modifiche, ripristino con tutte le sue strade (`RunOnce` compreso), conteggio dei motivi attivi
-- [ ] `actions.rs`: sospendi, iberna, arresta, blocca, spegni schermo (anche su standby moderno, secondo l'esito dello spike)
-- [ ] Domanda alla prima apertura su un portatile
-- [ ] Riga "Anche a coperchio chiuso" nel popover; sezione Coperchio nelle Impostazioni
-- [ ] "Fai ciò che Windows avrebbe fatto" in tutti i casi della tabella
-- [ ] Modalità scrivania
-- [ ] Protezione zaino
-- [ ] Soglia batteria (serve alla protezione zaino)
-- [ ] Blocco alla riapertura del coperchio
-- [ ] Criteri aziendali e account standard gestiti
+- [x] `sysevents.rs`: finestra nascosta su un thread dedicato, che riceve stato del coperchio, fonte di alimentazione, batteria, cambi di monitor e di piano energetico, sospensione/ripresa e fine della sessione di Windows
+- [x] `lidoverride.rs` (+ primitive in `lid.rs`): registro delle modifiche, ripristino con tutte le sue strade (`RunOnce` compreso), più schemi energetici, scelta dell'utente rispettata. Provato con un Windows finto nei test e con quello vero su LPT-MIKI
+- [x] `lidplan.rs`: i motivi attivi (sessione, scrivania) e "fai ciò che Windows avrebbe fatto", logica pura con un test per ogni riga della tabella
+- [x] `actions.rs`: sospendi, iberna, arresta, blocca (spegni schermo era già in `sys.rs`). **Non provate** su macchina: spegnerebbero il PC che esegue i test
+- [x] Domanda alla prima apertura su un portatile
+- [x] Riga "Anche a coperchio chiuso" nel pannello e nel menu; sezione Coperchio nelle Impostazioni, con l'impostazione di Windows e "Ripristina ora"
+- [x] "Fai ciò che Windows avrebbe fatto" in tutti i casi della tabella (logica; l'esecuzione vera aspetta il coperchio chiuso)
+- [x] Modalità scrivania (provata con due monitor esterni)
+- [x] Protezione zaino (logica)
+- [x] Soglia batteria, con notifica
+- [x] Blocco alla riapertura del coperchio (logica)
+- [x] Criteri aziendali: la sezione si disattiva e lo dice. Account standard: da provare
 - [ ] Presenza anticipata qui, **se** lo spike dimostra che il blocco del PC ferma la sessione
-- [ ] Tutta la tabella "Cosa conta come fatto, per il coperchio" provata su un portatile vero
+- [ ] Tutta la tabella "Cosa conta come fatto, per il coperchio" provata su un portatile vero: le righe che non chiedono di chiudere il coperchio sono fatte (vedi `test.md`), le altre aspettano lo spike
 
 ### 0.3.0 — prima release pubblica
 
@@ -496,11 +513,15 @@ src-tauri/src/
   cli.rs           parsing degli argomenti (anche quelli inoltrati dal single-instance)
   sys.rs           orologi, sessione di accesso, DPI, tema della barra, schermo spento
   capabilities.rs  portatile? standby moderno? ibernazione? stato di esecuzione
-  lid.rs           azione del coperchio: primitive (registro e ripristino nella 0.2)
+  lid.rs           azione del coperchio: leggere, scrivere, permessi
+  lidoverride.rs   la modifica che non resta mai cambiata: registro, RunOnce,
+                   ripristino (Windows dietro un trait: nei test è finto)
+  lidplan.rs       la logica del coperchio, pura: cosa forzare, cosa avrebbe
+                   fatto Windows, scrivania, zaino, blocco alla riapertura
+  sysevents.rs     finestra nascosta con le notifiche di sistema
+  actions.rs       blocco, sospensione, ibernazione, spegnimento
   (triggers/       una regola per file, trait comune — 0.4)
   (presence.rs     F15 via SendInput — 0.4, o 0.2 se lo spike lo chiede)
-  (actions.rs      blocco, sospensione, ibernazione, spegnimento — 0.2)
-  (sysevents.rs    finestra nascosta con le notifiche di sistema — 0.2)
 src-tauri/examples/
   spike.rs         prova tecnica sullo standby moderno (docs/SPIKE.md)
 src/
@@ -585,6 +606,12 @@ Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
 35. A 16 px il disegno vettoriale dell'icona non regge: va disegnata pixel per pixel. Da 20 px in su il vettoriale va bene.
 36. Con `crate-type` `staticlib`/`cdylib` (quelli del template di Tauri, pensati per mobile) il linker MSVC stampa "Creazione della libreria …" e Rust recente lo segnala come avviso (`linker_messages`). Moka è solo per Windows: basta `rlib`.
 37. Dopo un `taskkill /F` il processo sparisce e con lui le richieste (verificato), ma sparisce anche il `tauri dev` che lo aveva lanciato: per riprovare la ripresa della sessione va rilanciato.
+
+### Trovate scrivendo la 0.0.2 (2026-09-22)
+
+38. Il binario di debug lanciato da solo (`target/debug/moka.exe`) cerca le pagine sul server di sviluppo (`127.0.0.1:1430`): se `tauri dev` non gira, le finestre restano vuote. Va bene per provare la parte Rust (sessioni, coperchio, riga di comando), non l'interfaccia.
+39. Durante `tauri dev`, modificare **qualunque** file sotto `src-tauri/` (anche un esempio) ricompila e riavvia l'app: le finestre aperte spariscono. Chi prova l'interfaccia non tocca il codice nel frattempo.
+40. Con due monitor esterni e il pannello interno spento, un portatile sembra un fisso a chi guarda solo gli schermi. Il coperchio va letto dalle notifiche (`GUID_LIDSWITCH_STATE_CHANGE`), non dedotto dai monitor. E durante le prove va ricordato che una sessione spenta **a coperchio chiuso** fa sospendere davvero il PC dopo 10 secondi.
 
 ---
 

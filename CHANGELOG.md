@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-09-22 — 0.0.2: portatili e coperchio chiuso
+
+- **Coperchio chiuso**. Moka cambia per il tempo necessario l'impostazione di Windows "Quando chiudo il coperchio" e la rimette sempre com'era:
+  - registro su disco scritto prima di toccare Windows;
+  - ripristino nello schema modificato e solo se il valore è ancora quello scritto da Moka;
+  - `RunOnce` finché la modifica è attiva;
+  - ripristino all'avvio, all'uscita, alla fine della sessione di Windows, con `moka --restore-lid` e con "Ripristina ora".
+- **Cosa fa Moka da sola** (logica pura, con un test per ogni caso della roadmap):
+  - a fine sessione a coperchio chiuso, allo stacco dell'alimentatore o allo scollegamento del monitor fa ciò che Windows avrebbe fatto, dopo 10 s;
+  - protezione zaino;
+  - blocco alla riapertura del coperchio.
+- **Modalità scrivania**: con un monitor esterno collegato il coperchio chiuso non sospende mai il PC, anche senza una sessione.
+- **Soglia batteria**: la sessione finisce da sola scendendo sotto la soglia, e lo dice con una notifica.
+- **Eventi di sistema** su una finestra nascosta: coperchio, alimentazione, batteria, piano energetico, monitor, sospensione, fine della sessione di Windows.
+- **Interfaccia**:
+  - domanda al primo avvio sui portatili (Moka non tocca niente senza consenso);
+  - riga "Anche a coperchio chiuso" nel pannello e nel menu;
+  - sezioni Coperchio e Batteria nelle Impostazioni, con l'impostazione di Windows letta dal vivo e "Ripristina ora";
+  - criteri aziendali riconosciuti.
+- **Riga di comando**: `--lid`, `--no-lid`, `--restore-lid` (senza avviare l'app).
+- **Verificato su LPT-MIKI con l'impostazione vera**, letta ogni volta: modifica e ritorno, crash con `RunOnce` e con la riapertura, scelta dell'utente rispettata, cambio di modalità, "Ripristina ora", modalità scrivania con due monitor, uscita. Alla fine l'impostazione è tornata "Sospendi" in carica e a batteria. Dettagli in `test.md`.
+- **Da fare**, perché serve chiudere il coperchio: lo spike (`docs/SPIKE.md`) e le righe aperte di `test.md`.
+- **Test**: 54 in Rust. Il controllo delle versioni ora guarda anche `package-lock.json`.
+
 ## 2026-09-22 — 0.0.1: il nucleo, la CI, lo strumento per lo spike
 
 - Pianificazione chiusa: decisioni prese in [docs/ROADMAP.md](docs/ROADMAP.md) ("Decisioni prese scrivendo il codice"). Le principali:
