@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-22 — sito: nuovo design, stesso linguaggio visivo di ClipVault/MD-Viewer
+
+Solo `site/`, nessun cambio all'app (versione invariata, 0.0.4).
+
+- `style.css` riscritto da zero sullo stesso sistema di ClipVault/MD-Viewer: font Sora/Inter/IBM Plex Mono, tema scuro con eyebrow in monospace, pillola versione, griglia di feature, sezione download che legge le release GitHub via API e mostra installer/MSI/portable quando esistono (oggi "nessuna build installabile ancora", perché non c'è ancora una release pubblicata). Palette propria del progetto (ambra/caffè, non il viola di ClipVault né il blu di MD-Viewer), coerente con l'icona della moka.
+- `index.html` riscritto sulla stessa struttura (header con marchio+pillola versione+GitHub, hero con CTA, sezione con gli screenshot veri del pannello al posto di un mockup finto, griglia di funzioni, riga di comando, download dinamici, footer con i link legali) mantenendo tutto il contenuto bilingue IT/EN esistente e il meccanismo `data-lang`/`lang.js` invariato.
+- `privacy.html`/`terms.html`/`cookie-policy.html` non toccate: condividono già `style.css`, quindi ereditano il nuovo stile automaticamente.
+- Carica i font da Google Fonts (`fonts.googleapis.com`), come fanno ClipVault e MD-Viewer — diverso dalla nota "niente CDN" della release 0.0.3: è lo scambio esplicito richiesto per lo stesso linguaggio visivo. Se si preferisce restare senza CDN, i tre font vanno auto-ospitati in `site/fonts/` e la sezione `@font-face` sostituita al `<link>`.
+- Verificato in locale (server statico): entrambe le lingue, stato "nessuna build" (nessuna release esiste ancora su GitHub), pagine legali, nessun errore in console a parte il 404 atteso della chiamata `releases/latest` quando non c'è nessuna release. Non verificato: build reale/emulatore (non pertinente, è solo il sito), un vero cambio di release che popoli la sezione download.
+
 ## 2026-09-22 — 0.0.4: regole automatiche e Presenza
 
 - **Regole automatiche**: Moka si accende da sola quando serve e si spegne quando non serve più, controllando ogni 5 secondi:
