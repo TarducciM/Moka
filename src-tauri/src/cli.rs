@@ -17,11 +17,21 @@
 //!                           shutdown | none (da solo: vale per la sessione in corso)
 //! moka --lid / --no-lid     questa sessione resta accesa (o no) a coperchio chiuso
 //! moka --restore-lid        rimette l'impostazione del coperchio com'era, poi esce
+//! moka --while ffmpeg.exe   sveglio finché gira ffmpeg (si combina con --screen
+//!                           e --then; non si salva fra le regole)
+//! moka --while-pid 1234     sveglio finché vive il processo 1234
+//! moka --pause-rules        sospende le regole automatiche per un'ora
+//!                           (--pause-rules=2h per un tempo diverso)
+//! moka --resume-rules       le riattiva subito
 //! ```
 //!
 //! L'eseguibile è un'app a finestre: niente output sul terminale (trappola 15).
 
+use crate::rules::{normalize_exe, RuleKind};
 use crate::session::{parse_clock, parse_duration, Mode, Spec, ThenAct};
+
+/// `--pause-rules` senza durata: un'ora, come nel pannello.
+pub const PAUSE_DEFAULT_MINUTES: u32 = 60;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
@@ -48,6 +58,15 @@ pub enum Action {
     RestoreLid,
     /// Usato dall'installer (0.3): applica la scelta sull'avvio automatico ed esce.
     Autostart(bool),
+    /// `--while` / `--while-pid`: una regola che vive finché vive il processo.
+    While {
+        kind: RuleKind,
+        mode: Mode,
+        then: ThenAct,
+    },
+    /// Sospende le regole salvate per tanti minuti.
+    PauseRules(u32),
+    ResumeRules,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,6 +91,7 @@ where
     let mut lid: Option<bool> = None;
     let mut then: Option<ThenAct> = None;
     let mut explicit: Option<Action> = None;
+    let mut watch: Option<RuleKind> = None;
     let mut from_autostart = false;
     let mut unknown = Vec::new();
 
@@ -102,6 +122,22 @@ where
                 Some(act) => then = Some(act),
                 None => unknown.push(arg.to_owned()),
             },
+            "--while" => match value().as_deref().and_then(normalize_exe) {
+                Some(exe) => watch = Some(RuleKind::Process { exe }),
+                None => unknown.push(arg.to_owned()),
+            },
+            "--while-pid" => match value().and_then(|v| v.trim().parse::<u32>().ok()) {
+                Some(pid) if pid > 0 => watch = Some(RuleKind::Pid { pid }),
+                _ => unknown.push(arg.to_owned()),
+            },
+            // La durata solo attaccata (`--pause-rules=2h`): staccata, il
+            // valore si confonderebbe con l'argomento successivo.
+            "--pause-rules" => match inline.as_deref().map(parse_duration) {
+                None => explicit = Some(Action::PauseRules(PAUSE_DEFAULT_MINUTES)),
+                Some(Some(minutes)) => explicit = Some(Action::PauseRules(minutes)),
+                Some(None) => unknown.push(arg.to_owned()),
+            },
+            "--resume-rules" => explicit = Some(Action::ResumeRules),
             "--forever" => spec = Some(Spec::Never),
             "--screen" => screen = true,
             "--on" => on = true,
@@ -131,7 +167,14 @@ where
         None
     };
     let starts = spec.is_some() || screen || on || lid.is_some();
-    let action = explicit.unwrap_or(if starts {
+    let action = explicit.unwrap_or(if let Some(kind) = watch {
+        // Come per una durata: senza `--screen`, solo il PC.
+        Action::While {
+            kind,
+            mode: mode.unwrap_or(Mode::System),
+            then: then.unwrap_or(ThenAct::None),
+        }
+    } else if starts {
         Action::Start {
             mode,
             spec,
@@ -278,6 +321,46 @@ mod tests {
             Action::SetThen(ThenAct::ScreenOff)
         );
         assert_eq!(parse(["--then", "boom"]).unknown, vec!["--then"]);
+    }
+
+    #[test]
+    fn while_flags() {
+        assert_eq!(
+            action(&["--while", "C:\\Tools\\FFmpeg.exe", "--then", "sleep"]),
+            Action::While {
+                kind: RuleKind::Process {
+                    exe: "ffmpeg.exe".into()
+                },
+                mode: Mode::System,
+                then: ThenAct::Sleep,
+            }
+        );
+        assert_eq!(
+            action(&["--while-pid=1234", "--screen"]),
+            Action::While {
+                kind: RuleKind::Pid { pid: 1234 },
+                mode: Mode::Display,
+                then: ThenAct::None,
+            }
+        );
+        assert_eq!(parse(["--while-pid", "0"]).unknown, vec!["--while-pid"]);
+        assert_eq!(parse(["--while"]).unknown, vec!["--while"]);
+    }
+
+    #[test]
+    fn pause_flags() {
+        assert_eq!(action(&["--pause-rules"]), Action::PauseRules(60));
+        assert_eq!(action(&["--pause-rules=2h"]), Action::PauseRules(120));
+        // Staccato, "2h" non è la durata della pausa.
+        assert_eq!(
+            parse(["--pause-rules", "2h"]).unknown,
+            vec!["2h".to_owned()]
+        );
+        assert_eq!(
+            parse(["--pause-rules=boh"]).unknown,
+            vec!["--pause-rules=boh"]
+        );
+        assert_eq!(action(&["--resume-rules"]), Action::ResumeRules);
     }
 
     #[test]

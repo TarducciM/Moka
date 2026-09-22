@@ -28,6 +28,25 @@
         </button>
       </header>
 
+      <p class="rules-note" id="rules-note" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 4.5v6a4 4 0 0 0 4 4h10" />
+          <path d="m15 10.5 4 4-4 4" />
+        </svg>
+        <span class="rules-note-text" id="rules-note-text"></span>
+        <button type="button" class="link-btn" id="rules-resume" data-i18n="popover.rules_resume" hidden></button>
+      </p>
+
+      <section class="welcome" id="pause-card" hidden aria-labelledby="pause-title">
+        <h2 class="welcome-title" id="pause-title" data-i18n="popover.pause_title"></h2>
+        <p class="welcome-body" id="pause-body"></p>
+        <div class="card-actions">
+          <button type="button" class="btn btn-small btn-accent" id="pause-hour" data-i18n="popover.pause_hour"></button>
+          <button type="button" class="btn btn-small" id="pause-restart" data-i18n="popover.pause_restart"></button>
+          <button type="button" class="btn btn-small btn-quiet" id="pause-cancel" data-i18n="popover.pause_cancel"></button>
+        </div>
+      </section>
+
       <section class="update-card" id="update-card" hidden>
         <p class="update-text" id="update-text"></p>
         <button type="button" class="btn btn-small btn-accent" id="update-btn" data-i18n="popover.update_install"></button>

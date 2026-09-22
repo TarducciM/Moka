@@ -796,6 +796,253 @@ svg {
   opacity: 1;
 }
 
+/* ------------------------------------------------------------------ regole */
+
+.rules-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  border-radius: var(--radius);
+  background: var(--track);
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.rules-note svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent-text);
+}
+
+.rules-note-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.link-btn {
+  border: 0;
+  background: transparent;
+  padding: 2px 4px;
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rules-intro {
+  margin: -6px 0 10px;
+}
+
+.rules-paused {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-bottom: 10px;
+}
+
+.rules-paused .notice {
+  margin: 0;
+}
+
+.rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rule {
+  border-top: 1px solid var(--border);
+  padding: 10px 0;
+}
+
+.rule-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rule-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rule-text small {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.rule.is-off .rule-title {
+  color: var(--muted);
+}
+
+.rule-live {
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  padding: 1px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rule-head input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: none;
+}
+
+.rule-opts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.rule-opt {
+  flex: 1 1 150px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rule-opt small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.rule-opts select,
+.rule-form select,
+.times input {
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 4px 8px;
+}
+
+.rule-opts select {
+  width: 100%;
+}
+
+.rule-delete {
+  width: 32px;
+  height: 32px;
+  color: var(--muted);
+}
+
+.rule-delete:hover {
+  color: var(--danger-text);
+}
+
+.rules-actions {
+  margin-top: 10px;
+}
+
+.rules-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rules-actions svg {
+  width: 16px;
+  height: 16px;
+}
+
+.rule-form {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  padding: 4px 12px 12px;
+}
+
+.rule-form .field:first-child {
+  border-top: 0;
+}
+
+.rule-form .field-block {
+  padding-bottom: 10px;
+}
+
+.rule-form .card-actions {
+  margin-top: 10px;
+}
+
+.days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+
+.day {
+  position: relative;
+}
+
+.day input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+.day span {
+  display: inline-block;
+  min-width: 44px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 4px 10px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.day input:checked + span {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.day input:focus-visible + span {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.times {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0 0;
+  color: var(--danger-text);
+  font-size: 13px;
+}
+
+.warning svg {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

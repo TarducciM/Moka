@@ -8,6 +8,8 @@ pub mod lid;
 pub mod lidoverride;
 pub mod lidplan;
 pub mod power;
+pub mod probes;
+pub mod rules;
 pub mod session;
 pub mod settings;
 pub mod sys;
@@ -16,6 +18,7 @@ pub mod sysevents;
 mod commands;
 mod control;
 mod popover;
+mod presence;
 mod shortcuts;
 mod state;
 mod tray;
@@ -32,6 +35,11 @@ use crate::control::TRAY_ID;
 use crate::session::{Mode, Spec};
 use crate::settings::LeftClick;
 use crate::state::{AppState, Core, Paths, UiCache};
+
+/// Da quanto l'utente non tocca tastiera e mouse (per lo spike delle sonde).
+pub fn presence_idle_ms() -> u64 {
+    presence::idle_ms()
+}
 
 /// L'identifier dell'app: la cartella dei dati è `%APPDATA%\<identifier>`.
 const IDENTIFIER: &str = "com.moka.app";
@@ -96,6 +104,12 @@ pub fn run() {
             commands::answer_star,
             commands::check_updates,
             commands::install_update,
+            commands::list_processes,
+            commands::add_rule,
+            commands::update_rule,
+            commands::delete_rule,
+            commands::pause_rules,
+            commands::resume_rules,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -175,6 +189,8 @@ pub fn run() {
 
             control::apply_shortcuts(&handle);
             updates::spawn_checker(handle.clone());
+            spawn_rules(handle.clone());
+            presence::spawn(handle.clone());
 
             control::apply_cli(&handle, startup.action.clone(), false);
 
@@ -252,6 +268,23 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
             control::set_lid(app, !current);
         }
         "screen_off" => control::screen_off(app),
+        "rules" => {
+            let paused = app
+                .state::<AppState>()
+                .core
+                .lock()
+                .unwrap()
+                .rules
+                .paused
+                .is_some();
+            control::with_core(app, |c| {
+                if paused {
+                    c.resume_rules(sys::now());
+                } else {
+                    c.pause_rules(Some(cli::PAUSE_DEFAULT_MINUTES), sys::now());
+                }
+            });
+        }
         "open" => control::show_popover_at_tray(app),
         "settings" => {
             let app = app.clone();
@@ -268,6 +301,20 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
             }
         }
     }
+}
+
+/// Le regole automatiche: un controllo ogni 5 secondi (roadmap 0.4).
+fn spawn_rules(app: AppHandle) {
+    std::thread::Builder::new()
+        .name("moka-rules".into())
+        .spawn(move || {
+            let mut probes = probes::Probes::default();
+            loop {
+                control::rules_tick(&app, &mut probes);
+                std::thread::sleep(Duration::from_secs(5));
+            }
+        })
+        .expect("thread delle regole");
 }
 
 /// Il timer: chiude le sessioni scadute e tiene aggiornato il tempo residuo

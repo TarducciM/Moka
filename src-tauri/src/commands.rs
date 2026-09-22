@@ -8,14 +8,17 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State, WebviewWindow, WebviewWindowBuilder};
 
 use crate::control;
+use crate::i18n;
 use crate::i18n::{duration_label, lid_action_label, t, tv, Lang};
 use crate::popover;
+use crate::probes;
+use crate::rules::{RuleKind, CPU_CHOICES, DOWNLOAD_CHOICES};
 use crate::session::{format_duration_compact, Mode, Spec, ThenAct};
 use crate::settings::{
     normalize_shortcut, parse_durations_text, spec_is_valid, LangSetting, LeftClick, LidMode,
     BACKPACK_CHOICES, BATTERY_CHOICES, SHORTCUT_CHOICES,
 };
-use crate::state::{AppState, StateDto, ToastDto};
+use crate::state::{AppState, RuleError, StateDto, ThenChoice, ToastDto};
 use crate::sys;
 use crate::updates;
 
@@ -245,6 +248,41 @@ pub struct SettingsDto {
     pub shortcut_choices: Vec<ShortcutChoice>,
     pub shortcut_error: Option<String>,
     pub update_version: Option<String>,
+    pub rules: Vec<RuleDto>,
+    /// "Regole sospese fino alle 15:30".
+    pub rules_paused: Option<String>,
+    pub rule_kinds: Vec<ShortcutChoice>,
+    pub download_choices: Vec<ChoiceDto>,
+    pub cpu_choices: Vec<ChoiceDto>,
+    /// "lun", "mar"… da lunedì.
+    pub day_labels: Vec<String>,
+    pub then_choices: Vec<ThenChoice>,
+    pub presence: bool,
+}
+
+/// Una regola come la vede la pagina: testi già tradotti.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuleDto {
+    pub id: u32,
+    pub enabled: bool,
+    pub mode: Mode,
+    pub then: ThenAct,
+    /// "Programma aperto".
+    pub title: String,
+    /// "obs64.exe", "lun–ven, 09:00–18:00".
+    pub detail: String,
+    /// La regola sta tenendo sveglio il PC adesso.
+    pub active: bool,
+}
+
+/// Una regola nuova, come la manda la pagina.
+#[derive(Debug, Deserialize)]
+pub struct NewRule {
+    #[serde(flatten)]
+    pub kind: RuleKind,
+    pub mode: Mode,
+    pub then: ThenAct,
 }
 
 #[derive(Debug, Serialize)]
@@ -269,6 +307,29 @@ pub struct SettingsPatch {
     pub warn_before_end: Option<bool>,
     pub shortcut_toggle: Option<String>,
     pub shortcut_screen_off: Option<String>,
+    pub presence: Option<bool>,
+}
+
+/// I tipi di regola che hanno senso su questo PC: "in carica" solo con una
+/// batteria, "monitor esterno" solo su un portatile.
+fn rule_kinds(lang: Lang, has_battery: bool, laptop: bool) -> Vec<ShortcutChoice> {
+    [
+        ("process", "settings.rule_kind_process", true),
+        ("fullscreen", "settings.rule_kind_fullscreen", true),
+        ("call", "settings.rule_kind_call", true),
+        ("download", "settings.rule_kind_download", true),
+        ("cpu", "settings.rule_kind_cpu", true),
+        ("schedule", "settings.rule_kind_schedule", true),
+        ("plugged", "settings.rule_kind_plugged", has_battery),
+        ("monitor", "settings.rule_kind_monitor", laptop),
+    ]
+    .into_iter()
+    .filter(|(_, _, ok)| *ok)
+    .map(|(value, key, _)| ShortcutChoice {
+        value: value.to_owned(),
+        label: t(lang, key),
+    })
+    .collect()
 }
 
 fn settings_dto(app: &AppHandle) -> SettingsDto {
@@ -358,7 +419,122 @@ fn settings_dto(app: &AppHandle) -> SettingsDto {
             .as_ref()
             .map(|e| tv(lang, "settings.shortcut_error", &[("keys", e)])),
         update_version: core.update_version.clone(),
+        rules: core
+            .settings
+            .rules
+            .iter()
+            .map(|r| RuleDto {
+                id: r.id,
+                enabled: r.enabled,
+                mode: r.mode,
+                then: r.then,
+                title: i18n::rule_title(lang, &r.kind),
+                detail: i18n::rule_detail(lang, &r.kind),
+                active: core.rules.active.contains(&r.id),
+            })
+            .collect(),
+        rules_paused: core.rules_paused_label(),
+        rule_kinds: rule_kinds(lang, core.lid.caps.batteries, core.lid.caps.lid_present),
+        download_choices: DOWNLOAD_CHOICES
+            .iter()
+            .map(|&value| ChoiceDto {
+                value,
+                label: tv(
+                    lang,
+                    "rules.detail_kbps",
+                    &[("rate", &i18n::rate_label(value))],
+                ),
+            })
+            .collect(),
+        cpu_choices: CPU_CHOICES
+            .iter()
+            .map(|&value| ChoiceDto {
+                value,
+                label: tv(lang, "rules.detail_cpu", &[("percent", &value.to_string())]),
+            })
+            .collect(),
+        day_labels: (0..7).map(|d| i18n::day_short(lang, d)).collect(),
+        then_choices: ThenAct::ALL
+            .iter()
+            .map(|&act| ThenChoice {
+                value: act,
+                label: i18n::then_label(lang, act),
+            })
+            .collect(),
+        presence: core.settings.presence,
     }
+}
+
+/// I programmi con una finestra aperta, per scegliere quello della regola.
+/// Asincrono: gira fuori dal thread principale.
+#[tauri::command]
+pub async fn list_processes() -> Vec<String> {
+    probes::windowed_processes()
+}
+
+#[tauri::command]
+pub fn add_rule(app: AppHandle, rule: NewRule) -> Result<SettingsDto, String> {
+    let result = control::with_core(&app, |c| {
+        let lang = c.lang;
+        c.add_rule(rule.kind, rule.mode, rule.then)
+            .map_err(|e| match e {
+                RuleError::Invalid => t(lang, "settings.rule_invalid"),
+                RuleError::TooMany => t(lang, "settings.rule_too_many"),
+                RuleError::Duplicate => t(lang, "settings.rule_duplicate"),
+                RuleError::Save(err) => tv(lang, "settings.save_error", &[("error", &err)]),
+            })
+    });
+    // Senza aspettare 5 secondi: la regola nuova vale subito.
+    wake_rules(&app);
+    result.map(|()| settings_dto(&app))
+}
+
+#[tauri::command]
+pub fn update_rule(
+    app: AppHandle,
+    id: u32,
+    enabled: Option<bool>,
+    mode: Option<Mode>,
+    then: Option<ThenAct>,
+) -> Result<SettingsDto, String> {
+    let result = control::with_core(&app, |c| {
+        let lang = c.lang;
+        c.update_rule(id, enabled, mode, then)
+            .map_err(|e| tv(lang, "settings.save_error", &[("error", &e.to_string())]))
+    });
+    wake_rules(&app);
+    result.map(|()| settings_dto(&app))
+}
+
+#[tauri::command]
+pub fn delete_rule(app: AppHandle, id: u32) -> Result<SettingsDto, String> {
+    let result = control::with_core(&app, |c| {
+        let lang = c.lang;
+        c.delete_rule(id)
+            .map_err(|e| tv(lang, "settings.save_error", &[("error", &e.to_string())]))
+    });
+    result.map(|()| settings_dto(&app))
+}
+
+/// `minutes: None` = fino al prossimo avvio di Moka.
+#[tauri::command]
+pub fn pause_rules(app: AppHandle, minutes: Option<u32>) -> SettingsDto {
+    control::with_core(&app, |c| c.pause_rules(minutes, sys::now()));
+    settings_dto(&app)
+}
+
+#[tauri::command]
+pub fn resume_rules(app: AppHandle) -> SettingsDto {
+    control::with_core(&app, |c| c.resume_rules(sys::now()));
+    wake_rules(&app);
+    settings_dto(&app)
+}
+
+/// Un giro delle regole adesso, su un thread a parte (le sonde non devono
+/// bloccare il thread principale).
+fn wake_rules(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || control::rules_tick(&app, &mut probes::Probes::default()));
 }
 
 #[tauri::command]
@@ -417,6 +593,9 @@ pub fn update_settings(app: AppHandle, patch: SettingsPatch) -> Result<SettingsD
         }
         if let Some(s) = &patch.shortcut_screen_off {
             core.settings.shortcut_screen_off = normalize_shortcut(s);
+        }
+        if let Some(p) = patch.presence {
+            core.settings.presence = p;
         }
         core.settings = std::mem::take(&mut core.settings).dedup_shortcuts();
         core.save_settings()

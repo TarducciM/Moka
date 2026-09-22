@@ -24,6 +24,8 @@
   const modeButtons = [...document.querySelectorAll("[data-mode]")];
 
   let state = null;
+  // "Spegni" premuto mentre a tenere acceso è solo una regola: prima si chiede.
+  let askPause = false;
   let chipsKey = "";
   let lastHeight = 0;
   let ticker = null;
@@ -48,12 +50,15 @@
 
   function render() {
     const s = state;
-    document.body.classList.toggle("is-on", s.active);
-    document.body.classList.toggle("is-display", s.active && s.mode === "display");
+    // `active` è la sessione; `awake` anche una regola che tiene acceso.
+    document.body.classList.toggle("is-on", s.awake);
+    document.body.classList.toggle("is-display", s.displayOn);
 
     status.textContent = s.status;
-    power.setAttribute("aria-checked", String(s.active));
-    power.setAttribute("aria-label", I18n.t(s.active ? "popover.power_off" : "popover.power_on"));
+    power.setAttribute("aria-checked", String(s.awake));
+    power.setAttribute("aria-label", I18n.t(s.awake ? "popover.power_off" : "popover.power_on"));
+
+    renderRules(s);
 
     for (const btn of modeButtons) {
       const selected = btn.dataset.mode === s.mode;
@@ -103,6 +108,29 @@
     }
     $("star-card").hidden = !s.star || s.welcome || s.lidQuestion;
     fit();
+  }
+
+  // Le regole: perché è acceso (quando lo stato non basta a dirlo), se sono
+  // sospese, e la domanda prima di spegnere ciò che una regola riaccenderebbe.
+  function renderRules(s) {
+    const note = $("rules-note");
+    const text = $("rules-note-text");
+    // Senza sessione lo stato dice già la prima ragione ("Acceso · obs64.exe è aperto").
+    const extra = s.active ? s.reasons : s.reasons.slice(1);
+    if (s.rulesPaused) {
+      text.textContent = s.rulesPaused;
+    } else if (extra.length) {
+      text.textContent = I18n.t("popover.why", { reasons: extra.join(", ") });
+    }
+    note.hidden = !s.rulesPaused && !extra.length;
+    $("rules-resume").hidden = !s.rulesPaused;
+
+    const onlyRules = !s.active && s.awake && s.reasons.length > 0;
+    if (!onlyRules) askPause = false;
+    $("pause-card").hidden = !askPause;
+    if (askPause) {
+      $("pause-body").textContent = I18n.t("popover.pause_body", { reason: s.reasons.join(", ") });
+    }
   }
 
   function renderChips(s) {
@@ -169,7 +197,29 @@
     ticker = null;
   }
 
-  power.addEventListener("click", () => act("toggle_session"));
+  power.addEventListener("click", () => {
+    if (state && !state.active && state.awake && state.reasons.length) {
+      askPause = true;
+      render();
+      $("pause-hour").focus();
+      return;
+    }
+    act("toggle_session");
+  });
+  $("pause-hour").addEventListener("click", () => {
+    askPause = false;
+    act("pause_rules", { minutes: 60 });
+  });
+  $("pause-restart").addEventListener("click", () => {
+    askPause = false;
+    act("pause_rules", { minutes: null });
+  });
+  $("pause-cancel").addEventListener("click", () => {
+    askPause = false;
+    render();
+    power.focus();
+  });
+  $("rules-resume").addEventListener("click", () => act("resume_rules"));
 
   for (const btn of modeButtons) {
     btn.addEventListener("click", () => act("set_mode", { mode: btn.dataset.mode }));

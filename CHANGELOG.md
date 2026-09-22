@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-22 — 0.0.4: regole automatiche e Presenza
+
+- **Regole automatiche**: Moka si accende da sola quando serve e si spegne quando non serve più, controllando ogni 5 secondi:
+  - programma aperto, app a schermo intero, in chiamata (microfono o webcam), in carica, monitor esterno, fascia oraria, download in corso, processore occupato;
+  - ogni regola ha la sua modalità (solo il PC o anche lo schermo) e il suo "…e poi" quando finisce;
+  - download e processore restano veri 2 minuti dopo l'ultima volta sopra soglia, la chiamata 30 secondi;
+  - le sonde girano solo se una regola le usa, e mai sotto il lock dello stato.
+- **Il pannello dice perché**: "Acceso · notepad.exe è aperto", e "Anche: …" quando i motivi sono più d'uno.
+- **Sospendere le regole** per un'ora o fino al riavvio: spegnendo dal pannello Moka lo propone invece di spegnere e basta (la regola riaccenderebbe tutto); anche dal menu, dalle Impostazioni e da riga di comando.
+- **Riga di comando**: `--while NOME`, `--while-pid N` (regole che vivono finché vive il processo, con notifica se il processo non c'è), `--pause-rules[=durata]`, `--resume-rules`.
+- **Presenza**: F15 dopo 50 secondi di inattività, solo mentre Moka tiene acceso il PC; spenta di default, con l'avviso sulle regole aziendali.
+- Sezioni **Regole automatiche** e **Presenza** nelle Impostazioni, con il modulo per aggiungere una regola (suggerisce i programmi aperti).
+- `spike probes`: stampa ciò che vedono le sonde, per provarle a mano.
+- Verificato su LPT-MIKI: programma aperto e chiuso, "…e poi" di una regola, sospensione e ripresa, `--while-pid`, `--pause-rules`, fascia oraria, in carica, processore, F15, contrasti (dettagli in `test.md`).
+
 ## 2026-09-22 — 0.0.3: tutto il necessario per la prima release
 
 - **"…e poi"**:

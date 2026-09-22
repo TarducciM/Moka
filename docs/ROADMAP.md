@@ -1,6 +1,6 @@
 # Moka — piano di progetto
 
-> **Stato: sviluppo, 0.0.3.** Tutto il codice fino alla 0.3 (prima release pubblica) è scritto; la pubblicazione aspetta lo spike e i passi di Michele in [`RELEASE.md`](RELEASE.md). In dettaglio: Il nucleo della 0.1 e tutta la parte della 0.2 che non dipende dallo spike sono scritti e verificati su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md). Lo spike decide **quali richieste** tenere a coperchio chiuso, non come si cambia e si rimette l'impostazione di Windows, che è già fatto e provato.
+> **Stato: sviluppo, 0.0.4.** Tutto il codice fino alla 0.4 (regole automatiche e Presenza) è scritto e provato su LPT-MIKI; la pubblicazione della prima release aspetta lo spike e i passi di Michele in [`RELEASE.md`](RELEASE.md). In dettaglio: Il nucleo della 0.1 e tutta la parte della 0.2 che non dipende dallo spike sono scritti e verificati su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md). Lo spike decide **quali richieste** tenere a coperchio chiuso, non come si cambia e si rimette l'impostazione di Windows, che è già fatto e provato.
 >
 > Questo file è il punto di ripresa: chi riprende il lavoro, da qualunque PC, parte da qui. Va aggiornato a ogni passaggio significativo, insieme a `CHANGELOG.md`.
 >
@@ -54,7 +54,7 @@ Serve un PC Windows con la toolchain Tauri. **Il primo comando è `hostname`**, 
 | Data | Macchina (`hostname`) | Rust | Cosa è stato fatto |
 |---|---|---|---|
 | 2026-09-21 | PC-MIKY | no | solo progettazione, nessun codice |
-| 2026-09-22 | LPT-MIKI (Acer Nitro ANV16S-41, portatile, standby moderno connesso, niente S3) | 1.98, MSVC, VS Build Tools 2022, Node 24, WebView2 153 | pianificazione chiusa, check della macchina, nucleo della 0.1, CI, strumento per lo spike; poi 0.0.2: coperchio (modifica e ripristino, scrivania, zaino), eventi di sistema, soglia batteria |
+| 2026-09-22 | LPT-MIKI (Acer Nitro ANV16S-41, portatile, standby moderno connesso, niente S3) | 1.98, MSVC, VS Build Tools 2022, Node 24, WebView2 153 | pianificazione chiusa, check della macchina, nucleo della 0.1, CI, strumento per lo spike; poi 0.0.2: coperchio (modifica e ripristino, scrivania, zaino), eventi di sistema, soglia batteria; 0.0.3: "…e poi", installer, aggiornamenti, sito; 0.0.4: regole automatiche e Presenza |
 
 ---
 
@@ -106,6 +106,23 @@ Serve un PC Windows con la toolchain Tauri. **Il primo comando è `hostname`**, 
 | Richieste a coperchio chiuso | Con la modifica attiva su un PC con standby moderno Moka tiene anche `ExecutionRequired` (ipotesi 1 dello spike). Non costa niente; lo spike dirà se basta o se è inutile. |
 | Sospendere da codice | `SetSuspendState`; se su standby moderno viene rifiutata, il ripiego è spegnere lo schermo senza richieste attive (ipotesi 4 dello spike). |
 
+### Decisioni prese scrivendo le regole (0.0.4, 2026-09-22)
+
+| Tema | Decisione |
+|---|---|
+| Motore | Un solo tipo `Rule` con un `RuleKind` per ogni regola (`rules.rs`, logica pura e testata), invece di un trait con un file per regola: le regole sono dati che vanno salvati, confrontati e mostrati, e un enum lo fa senza codice in più. Le sonde stanno in `probes.rs` e girano **fuori dal lock**, su un thread che controlla ogni 5 s. |
+| Sonde a richiesta | Gira solo ciò che serve alle regole attive: senza una regola sul download, niente contatori di rete; senza una regola sul processore, niente `GetSystemTimes`. |
+| Isteresi | Download e processore restano veri per 2 minuti dopo l'ultima volta sopra soglia (un download ha pause, una compilazione ha fasi leggere); la chiamata per 30 s (il microfono si chiude fra una riunione e la successiva); le altre finiscono subito. |
+| Doppioni | Due regole identiche non si possono creare ("cambia quella che c'è"); al massimo 20. Programma, soglie e giorni vengono validati in Rust: la pagina non può scrivere una regola che il codice non avrebbe scritto. |
+| Coperchio | Le regole seguono la stessa scelta "Anche a coperchio chiuso" delle sessioni (l'ultima fatta nel pannello), con le stesse protezioni (solo in carica, zaino, scrivania). |
+| "…e poi" di una regola | Parte solo quando la regola finisce **da sola** e niente altro tiene acceso il PC. Non parte se la regola viene disattivata, eliminata, sospesa o fermata dalla soglia batteria. Se durante il conto alla rovescia una regola torna vera (il download riparte), il conto si annulla. La finestrella dice quale regola è finita. |
+| Soglia batteria | Ferma anche le regole: sono automatiche, nessuno le ha chieste adesso. Una sola notifica, anche se si fermano insieme sessione e regole. |
+| Sospendere | "Per un'ora" o "fino al riavvio di Moka" (non si salva su disco). Sospendere ferma anche i `--while` in corso: chi spegne vuole il PC libero. Un `--while` chiesto durante la pausa vale, perché è una richiesta esplicita. |
+| Spegnere con una regola attiva | Dal pannello Moka chiede prima (sospendi per un'ora, fino al riavvio, annulla). Dal clic sull'icona, dal menu e dal tasto rapido non si può chiedere: lì "spegni" sospende le regole per un'ora. Il menu ha anche la voce "Sospendi le regole per un'ora" / "Riprendi le regole", solo se ci sono regole. |
+| `--while` / `--while-pid` | Regole temporanee, mai salvate, che vivono finché vive il processo. Se il processo non compare entro 10 s la regola si scarta con una notifica ("non è in esecuzione"). |
+| Suggerimenti nel modulo | I programmi con una finestra visibile, meno quelli che ospitano la shell (`applicationframehost.exe`, `textinputhost.exe`…): il campo resta libero, l'elenco è solo un aiuto. |
+| Presenza | Controllo ogni 10 s: F15 solo se Moka sta tenendo sveglio il PC e l'utente è fermo da almeno 50 s. Spenta di default, con l'avviso obbligatorio accanto all'interruttore. |
+
 **Misure della build di release 0.0.1** (LPT-MIKI, 2026-09-22):
 
 - eseguibile 3,5 MB; installer NSIS 1,3 MB; MSI 1,8 MB;
@@ -132,6 +149,7 @@ Il "check veloce" prima di scrivere codice, fatto sulla macchina e non a memoria
 | Moka 0.0.1 in funzione | CLI inoltrata all'istanza aperta, scadenza, rilascio dopo chiusura forzata, ripresa, `--quit`, Impostazioni, lingua, contrasti: tutto in `test.md` | `test.md` |
 | Monitor esterni | **2** (due 2560×1440; il pannello interno non risulta attivo) | `spike info` |
 | Moka 0.0.2, coperchio | Modifica "solo in carica" e "anche a batteria", ritorno com'era a fine sessione, all'uscita e con "Ripristina ora"; crash con `RunOnce` e con la riapertura; scelta dell'utente rispettata; modalità scrivania senza sessione. Tutto provato sull'impostazione **vera**, letta ogni volta con `spike info`: dettagli in `test.md` | `test.md` |
+| Sonde delle regole (0.0.4) | Processi (~195), programmi con finestra, velocità di download e carico del processore letti ogni 5 s; schermo intero e chiamata "no" a riposo. ⚠️ Con un desktop remoto aperto (RustDesk, TeamViewer) entrano ~1 MB/s **continui**: la regola sul download a 1 MB/s risulta vera (trappola 47) | `spike probes --seconds 60` |
 
 ---
 
@@ -163,13 +181,13 @@ Se il PC si è sospeso comunque durante la sessione (coperchio chiuso, tasto di 
 
 | Regola | Come si rileva | Note |
 |---|---|---|
-| Un programma è aperto | Elenco dei processi (Toolhelp32) ogni 5 s | Per nome dell'eseguibile, scelto dall'elenco dei processi in esecuzione |
+| Un programma è aperto | Elenco dei processi (Toolhelp32) ogni 5 s | Per nome dell'eseguibile; il modulo suggerisce i programmi con una finestra aperta |
 | App a schermo intero | `SHQueryUserNotificationState` (`QUNS_BUSY`, `QUNS_RUNNING_D3D_FULL_SCREEN`, `QUNS_PRESENTATION_MODE`) | Video, giochi, presentazioni |
-| In chiamata | Registro `CapabilityAccessManager\ConsentStore\{microphone,webcam}`: `LastUsedTimeStop = 0` significa in uso | **Da verificare** con Teams, Zoom e Meet nel browser |
+| In chiamata | Registro `CapabilityAccessManager\ConsentStore\{microphone,webcam}` (anche `NonPackaged`): `LastUsedTimeStop = 0` significa in uso | **Da verificare** con Teams, Zoom e Meet nel browser |
 | In carica | `GetSystemPowerStatus` + `RegisterPowerSettingNotification(GUID_ACDC_POWER_SOURCE)` | |
 | Monitor esterno collegato | Numero di monitor (`EnumDisplayMonitors`, `WM_DISPLAYCHANGE`) | "Modalità scrivania" |
-| Download in corso | Contatori delle interfacce di rete (`GetIfTable2`), soglia in KB/s | Finisce dopo N minuti sotto soglia |
-| CPU occupata | `GetSystemTimes`, soglia in % | Render, compilazioni |
+| Download in corso | Contatori delle interfacce di rete (`GetIfTable2`), soglia 100 KB/s, 500 KB/s, 1 MB/s o 5 MB/s | Vale l'interfaccia più veloce, non la somma (trappola 46); finisce dopo 2 minuti sotto soglia |
+| CPU occupata | `GetSystemTimes`, soglia 25, 50 o 75% | Render, compilazioni; finisce dopo 2 minuti sotto soglia |
 | Fascia oraria | Giorni della settimana + orari | Es. lun-ven 9-18 |
 | Disco USB collegato | Volumi rimovibili (`WM_DEVICECHANGE`) | 0.5 |
 | Rete Wi-Fi | Vedi trappola 17 | 0.5, da verificare |
@@ -190,9 +208,9 @@ Ogni ~50 secondi, e solo se l'utente è inattivo da almeno 50 secondi (`GetLastI
 
 Effetto: il contatore di inattività di Windows riparte, quindi niente salvaschermo, niente blocco per inattività, niente "Assente" su Teams o Slack. Serve perché le richieste di alimentazione **non fermano il salvaschermo** (lo dice la documentazione di `SetThreadExecutionState`).
 
-- Spenta di default, attivabile per sessione o come impostazione.
+- Spenta di default, attivabile nelle Impostazioni (sezione Presenza).
 - Testo in app, obbligatorio: *"Il blocco per inattività esiste per sicurezza: sui PC di lavoro questa opzione può violare le regole aziendali."*
-- **Da verificare** che F15 non faccia niente nelle app più comuni. Alternativa: spostare il mouse di un pixel e riportarlo indietro.
+- Verificato su LPT-MIKI che F15 azzera davvero il contatore di inattività di Windows (`spike probes`: sale fino a 50 s, al controllo dopo torna a 0). **Da verificare** che non faccia niente nelle app più comuni e che tenga "presente" Teams. Alternativa, se servisse: spostare il mouse di un pixel e riportarlo indietro.
 
 ### Diagnostica: "Perché il PC non dorme / si è svegliato?" (0.5)
 
@@ -226,14 +244,16 @@ moka --screen-off         spegne subito lo schermo
 moka --quit               chiude Moka
 ```
 
-Più avanti:
+Arrivati dopo:
 
 ```text
-moka --while-pid 1234     finché il processo 1234 è vivo                 (0.4)
-moka --while ffmpeg.exe   finché un processo con quel nome è aperto       (0.4)
-moka --then sleep         a fine sessione: display-off | lock | sleep | hibernate | shutdown   (0.3)
 moka --lid / --no-lid     questa sessione resta accesa (o no) a coperchio chiuso            (0.2)
 moka --restore-lid        rimette l'impostazione del coperchio com'era, poi esce            (0.2)
+moka --then sleep         a fine sessione: display-off | lock | sleep | hibernate | shutdown   (0.3)
+moka --while ffmpeg.exe   finché un processo con quel nome è aperto (con --screen, --then)  (0.4)
+moka --while-pid 1234     finché il processo 1234 è vivo                                    (0.4)
+moka --pause-rules        sospende le regole per un'ora (--pause-rules=2h per un altro tempo) (0.4)
+moka --resume-rules       le riattiva                                                       (0.4)
 ```
 
 Gli argomenti arrivano all'istanza già aperta tramite il plugin single-instance, come fa ClipVault con `--enable-autostart` (che Moka accetta già, insieme a `--disable-autostart`, per l'installer della 0.3). I comandi non restituiscono output ("spara e dimentica", vedi trappola 15). Anche da riga di comando `--then shutdown` passa dal conto alla rovescia.
@@ -473,10 +493,13 @@ Ogni passaggio: bump di patch più voce nel `CHANGELOG`. Minor alle tappe qui so
 
 ### 0.4.0 — regole automatiche e Presenza
 
-- [ ] Motore delle regole (una regola per file, trait comune, controllo ogni 5 s, eventi dove è semplice)
-- [ ] Regole: programma aperto, schermo intero, in chiamata, in carica, monitor esterno, fascia oraria, download in corso, CPU occupata
-- [ ] "Sospendi le regole per un'ora"
-- [ ] Presenza (se non è già arrivata con la 0.2)
+- [x] Motore delle regole (`rules.rs`: un enum invece di un file per regola, vedi le decisioni della 0.0.4; controllo ogni 5 s su un thread, sonde fuori dal lock e solo quelle che servono)
+- [x] Regole: programma aperto, schermo intero, in chiamata, in carica, monitor esterno, fascia oraria, download in corso, CPU occupata; ognuna con modalità e "…e poi" propri
+- [x] Il pannello dice perché è acceso ("Acceso · notepad.exe è aperto", "Anche: …")
+- [x] "Sospendi le regole per un'ora" (o fino al riavvio), dal pannello, dal menu, dalle Impostazioni e da riga di comando
+- [x] `--while`, `--while-pid`, `--pause-rules`, `--resume-rules`
+- [x] Presenza (F15), spenta di default, con l'avviso
+- [ ] Le righe 0.0.4 aperte di `test.md`: schermo intero, chiamata con Teams/Zoom/Meet, monitor esterno, voce del menu, F15 nelle app comuni
 
 ### 0.5.0 — diagnostica e rifiniture
 
@@ -615,6 +638,16 @@ Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
 43. `createUpdaterArtifacts: true` nella configurazione normale fa fallire ogni `tauri build` senza la chiave privata (anche in locale e nel workflow `build`). Sta in `tauri.release.conf.json`, usato solo dalla release.
 44. La classe `.toast` esisteva già (il messaggio "Salvato" delle Impostazioni, fisso e trasparente): la finestrella degli avvisi la ereditava e restava invisibile. Lezione generale: un foglio di stile condiviso fra più pagine vuole nomi di classe che non si pestino.
 45. `focusable: false` nella configurazione della finestra la mostra senza rubare il focus a chi sta scrivendo: giusto per un avviso che compare da solo.
+
+### Trovate scrivendo la 0.0.4 (2026-09-22)
+
+46. `GetIfTable2` elenca la **stessa** scheda di rete più volte (le interfacce dei filtri: QoS, WFP, …), ognuna con i suoi contatori. Sommarle conta lo stesso download due o tre volte: per la velocità vale la più veloce.
+47. Un **desktop remoto** aperto (RustDesk, TeamViewer) fa entrare circa 1 MB/s in continuazione: una regola "download sopra 1 MB/s" resta vera per tutta la sessione remota. Non si distingue da un download vero; va detto a chi sceglie la soglia.
+48. Per lo stesso motivo il bit `DISPLAY` dello stato di esecuzione del sistema può essere già acceso da altri (il desktop remoto tiene lo schermo): con una sessione remota aperta non prova che la richiesta è di Moka.
+49. Per provare una Moka nuova mentre un'altra sta già tenendo sveglio il PC (magari proprio quello da cui si lavora), serve un identifier diverso: `npx tauri dev --config '{"identifier":"com.moka.dev"}'`. Single-instance, dati e WebView2 restano separati; dopo, via `%APPDATA%\com.moka.dev` e `%LOCALAPPDATA%\com.moka.dev`. Con il coperchio mai chiesto nell'istanza nuova, l'impostazione di Windows non viene toccata.
+50. Nel crate `windows` 0.61 `BOOL` sta in `windows::core`, non più in `Win32::Foundation`.
+51. `Add-Type` di PowerShell fallisce se la variabile `LIB` contiene una cartella che non esiste (su LPT-MIKI la lascia un SDK Quixant): `env -u LIB powershell …`.
+52. Un'etichetta visibile per ogni tendina, anche quando lo spazio è poco: "Niente" da solo, accanto a "Solo il PC", non dice che è il "…e poi".
 
 ### Trovate scrivendo la 0.0.2 (2026-09-22)
 

@@ -178,6 +178,102 @@ pub fn then_label(lang: Lang, act: crate::session::ThenAct) -> String {
     )
 }
 
+/// Il motivo per cui una regola tiene sveglio il PC: "obs64.exe è aperto".
+pub fn rule_reason(lang: Lang, kind: &crate::rules::RuleKind) -> String {
+    use crate::rules::RuleKind as K;
+    match kind {
+        K::Process { exe } => tv(lang, "rules.process", &[("exe", exe)]),
+        K::Pid { pid } => tv(lang, "rules.pid", &[("pid", &pid.to_string())]),
+        K::Fullscreen => t(lang, "rules.fullscreen"),
+        K::Call => t(lang, "rules.call"),
+        K::Plugged => t(lang, "rules.plugged"),
+        K::Monitor => t(lang, "rules.monitor"),
+        K::Download { .. } => t(lang, "rules.download"),
+        K::Cpu { .. } => t(lang, "rules.cpu"),
+        K::Schedule { from, to, .. } => tv(
+            lang,
+            "rules.schedule",
+            &[("from", &hhmm(*from)), ("to", &hhmm(*to))],
+        ),
+    }
+}
+
+/// Il titolo di una regola nell'elenco delle Impostazioni.
+pub fn rule_title(lang: Lang, kind: &crate::rules::RuleKind) -> String {
+    use crate::rules::RuleKind as K;
+    t(
+        lang,
+        match kind {
+            K::Process { .. } | K::Pid { .. } => "settings.rule_kind_process",
+            K::Fullscreen => "settings.rule_kind_fullscreen",
+            K::Call => "settings.rule_kind_call",
+            K::Plugged => "settings.rule_kind_plugged",
+            K::Monitor => "settings.rule_kind_monitor",
+            K::Download { .. } => "settings.rule_kind_download",
+            K::Cpu { .. } => "settings.rule_kind_cpu",
+            K::Schedule { .. } => "settings.rule_kind_schedule",
+        },
+    )
+}
+
+/// Il dettaglio sotto il titolo: "obs64.exe", "sopra 500 KB/s", "lun–ven · 09:00–18:00".
+pub fn rule_detail(lang: Lang, kind: &crate::rules::RuleKind) -> String {
+    use crate::rules::RuleKind as K;
+    match kind {
+        K::Process { exe } => exe.clone(),
+        K::Pid { pid } => format!("pid {pid}"),
+        K::Download { kbps } => tv(lang, "rules.detail_kbps", &[("rate", &rate_label(*kbps))]),
+        K::Cpu { percent } => tv(
+            lang,
+            "rules.detail_cpu",
+            &[("percent", &percent.to_string())],
+        ),
+        K::Schedule { days, from, to } => {
+            format!(
+                "{} · {}–{}",
+                days_label(lang, *days),
+                hhmm(*from),
+                hhmm(*to)
+            )
+        }
+        _ => String::new(),
+    }
+}
+
+/// "500 KB/s", "1 MB/s": la soglia di una regola sul download.
+pub fn rate_label(kbps: u32) -> String {
+    if kbps >= 1000 && kbps.is_multiple_of(1000) {
+        format!("{} MB/s", kbps / 1000)
+    } else {
+        format!("{kbps} KB/s")
+    }
+}
+
+const DAY_KEYS: [&str; 7] = [
+    "days.mon", "days.tue", "days.wed", "days.thu", "days.fri", "days.sat", "days.sun",
+];
+
+pub fn day_short(lang: Lang, day: usize) -> String {
+    t(lang, DAY_KEYS[day % 7])
+}
+
+fn days_label(lang: Lang, days: u8) -> String {
+    match days & 0x7f {
+        0x7f => t(lang, "days.every"),
+        0x1f => t(lang, "days.weekdays"),
+        0x60 => t(lang, "days.weekend"),
+        d => (0..7)
+            .filter(|i| d & (1 << i) != 0)
+            .map(|i| day_short(lang, i))
+            .collect::<Vec<_>>()
+            .join(", "),
+    }
+}
+
+fn hhmm(minutes: u16) -> String {
+    format!("{:02}:{:02}", minutes / 60, minutes % 60)
+}
+
 /// "Sospendi", "Iberna"… per un valore dell'azione del coperchio.
 pub fn lid_action_label(lang: Lang, value: u32) -> String {
     t(

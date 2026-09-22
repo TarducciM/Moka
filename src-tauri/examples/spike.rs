@@ -7,7 +7,12 @@
 //! cargo run --release --example spike -- run --minutes 10 --screen-off
 //! cargo run --release --example spike -- run --minutes 30 --lid --display
 //! cargo run --release --example spike -- report spike-AAAAMMGG-HHMMSS.csv
+//! cargo run --release --example spike -- probes --seconds 60
 //! ```
+//!
+//! `probes` (0.4) stampa ogni 5 s ciò che vedono le sonde delle regole
+//! (schermo intero, chiamata, download, processore, inattività): serve a
+//! verificarle a mano aprendo un video, una chiamata, un download.
 //!
 //! `run` tiene le richieste scelte, scrive un battito ogni 10 s in un CSV e
 //! alla fine cerca i **buchi**: un intervallo molto più lungo di 10 s vuol dire
@@ -25,6 +30,8 @@ use chrono::{DateTime, Local, TimeZone, Utc};
 use moka_lib::capabilities;
 use moka_lib::lid::{self, LidAction};
 use moka_lib::power::{Needs, PowerRequest};
+use moka_lib::probes::{self, Probes};
+use moka_lib::rules;
 use moka_lib::sys;
 use windows::core::{BOOL, GUID};
 use windows::Win32::System::Console::SetConsoleCtrlHandler;
@@ -42,6 +49,7 @@ fn main() {
         Some("info") => info(),
         Some("lid-write-check") => lid_write_check(),
         Some("run") => run(&args[1..]),
+        Some("probes") => probe_loop(&args[1..]),
         Some("report") => match args.get(1) {
             Some(path) => report(path),
             None => usage(),
@@ -52,9 +60,50 @@ fn main() {
 
 fn usage() {
     eprintln!(
-        "uso:\n  spike info\n  spike run [--minutes N] [--display] [--execution] [--no-system]\n            [--screen-off] [--lid] [--lid-battery] [--log FILE]\n  spike report FILE"
+        "uso:\n  spike info\n  spike run [--minutes N] [--display] [--execution] [--no-system]\n            [--screen-off] [--lid] [--lid-battery] [--log FILE]\n  spike report FILE\n  spike probes [--seconds N]"
     );
     std::process::exit(2);
+}
+
+fn probe_loop(args: &[String]) {
+    let seconds: u64 = args
+        .iter()
+        .position(|a| a == "--seconds")
+        .and_then(|i| args.get(i + 1))
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(60);
+    let needs = rules::Needs {
+        processes: true,
+        fullscreen: true,
+        call: true,
+        net: true,
+        cpu: true,
+    };
+    let windowed = probes::windowed_processes();
+    println!(
+        "programmi con una finestra ({}): {}",
+        windowed.len(),
+        windowed.join(", ")
+    );
+    let mut p = Probes::default();
+    let start = Instant::now();
+    loop {
+        let seen = p.observe(needs, sys::now().tick_ms);
+        println!(
+            "{:>4}s  processi {:>3}  schermo intero {}  chiamata {}  download {}  cpu {}  inattivo {} s",
+            start.elapsed().as_secs(),
+            seen.processes.as_ref().map_or(0, |s| s.len()),
+            yes(seen.fullscreen),
+            yes(seen.call),
+            seen.net_kbps.map_or("-".into(), |k| format!("{k} KB/s")),
+            seen.cpu_percent.map_or("-".into(), |c| format!("{c}%")),
+            moka_lib::presence_idle_ms() / 1000,
+        );
+        if start.elapsed().as_secs() >= seconds {
+            break;
+        }
+        std::thread::sleep(Duration::from_secs(5));
+    }
 }
 
 fn info() {

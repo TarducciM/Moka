@@ -85,6 +85,8 @@ pub struct TrayMenu {
     screen: CheckMenuItem<Wry>,
     /// Solo sui portatili in cui l'utente ha acconsentito.
     lid: Option<CheckMenuItem<Wry>>,
+    /// Solo se ci sono regole salvate.
+    rules: Option<MenuItem<Wry>>,
 }
 
 pub struct MenuView<'a> {
@@ -92,6 +94,7 @@ pub struct MenuView<'a> {
     pub active: bool,
     pub display: bool,
     pub lid: bool,
+    pub rules_paused: bool,
 }
 
 impl TrayMenu {
@@ -100,6 +103,7 @@ impl TrayMenu {
         lang: Lang,
         durations: &[u32],
         lid_row: bool,
+        has_rules: bool,
     ) -> tauri::Result<TrayMenu> {
         let status = MenuItem::with_id(app, "status", "", false, None::<&str>)?;
         let toggle = MenuItem::with_id(app, "toggle", t(lang, "menu.start"), true, None::<&str>)?;
@@ -161,6 +165,17 @@ impl TrayMenu {
             true,
             None::<&str>,
         )?;
+        let rules = if has_rules {
+            Some(MenuItem::with_id(
+                app,
+                "rules",
+                t(lang, "menu.rules_pause"),
+                true,
+                None::<&str>,
+            )?)
+        } else {
+            None
+        };
         let open = MenuItem::with_id(app, "open", t(lang, "menu.open"), true, None::<&str>)?;
         let settings = MenuItem::with_id(
             app,
@@ -179,9 +194,12 @@ impl TrayMenu {
         if let Some(lid) = &lid {
             items.push(lid);
         }
+        items.push(&screen_off);
+        if let Some(rules) = &rules {
+            items.push(rules);
+        }
         items.extend([
-            &screen_off as &dyn tauri::menu::IsMenuItem<Wry>,
-            &sep_2,
+            &sep_2 as &dyn tauri::menu::IsMenuItem<Wry>,
             &open,
             &settings,
             &sep_3,
@@ -195,6 +213,7 @@ impl TrayMenu {
             toggle,
             screen,
             lid,
+            rules,
         })
     }
 
@@ -211,6 +230,16 @@ impl TrayMenu {
         let _ = self.screen.set_checked(view.display);
         if let Some(lid) = &self.lid {
             let _ = lid.set_checked(view.lid);
+        }
+        if let Some(rules) = &self.rules {
+            let _ = rules.set_text(t(
+                lang,
+                if view.rules_paused {
+                    "menu.rules_resume"
+                } else {
+                    "menu.rules_pause"
+                },
+            ));
         }
     }
 }

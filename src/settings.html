@@ -53,6 +53,99 @@
         </div>
       </section>
 
+      <section class="card" aria-labelledby="rules-title">
+        <h2 id="rules-title" data-i18n="settings.section_rules"></h2>
+        <p class="hint rules-intro" data-i18n="settings.rules_intro"></p>
+        <div class="rules-paused" id="rules-paused" hidden>
+          <p class="notice" id="rules-paused-text"></p>
+          <button type="button" class="btn btn-small" id="rules-resume" data-i18n="settings.rules_resume"></button>
+        </div>
+        <ul class="rules" id="rules-list"></ul>
+        <p class="hint" id="rules-empty" data-i18n="settings.rules_empty"></p>
+        <div class="card-actions rules-actions">
+          <button type="button" class="btn btn-small" id="rule-open">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            <span data-i18n="settings.rule_add"></span>
+          </button>
+          <button type="button" class="btn btn-small btn-quiet" id="rules-pause" data-i18n="settings.rules_pause" hidden></button>
+        </div>
+
+        <form class="rule-form" id="rule-form" hidden novalidate>
+          <div class="field">
+            <label for="rule-kind" data-i18n="settings.rule_when"></label>
+            <select id="rule-kind"></select>
+          </div>
+          <div class="field-block" id="rule-exe-field">
+            <label for="rule-exe" data-i18n="settings.rule_program"></label>
+            <input
+              type="text"
+              id="rule-exe"
+              class="text-input"
+              list="rule-exe-list"
+              spellcheck="false"
+              autocomplete="off"
+              maxlength="64"
+              placeholder="obs64.exe"
+              aria-describedby="rule-exe-hint"
+            />
+            <datalist id="rule-exe-list"></datalist>
+            <small id="rule-exe-hint" data-i18n="settings.rule_program_hint"></small>
+          </div>
+          <div class="field" id="rule-kbps-field" hidden>
+            <label for="rule-kbps" data-i18n="settings.rule_rate"></label>
+            <select id="rule-kbps"></select>
+          </div>
+          <div class="field" id="rule-cpu-field" hidden>
+            <label for="rule-cpu" data-i18n="settings.rule_load"></label>
+            <select id="rule-cpu"></select>
+          </div>
+          <div class="field-block" id="rule-schedule-field" hidden>
+            <span id="rule-days-label" data-i18n="settings.rule_days"></span>
+            <div class="days" id="rule-days" role="group" aria-labelledby="rule-days-label"></div>
+            <div class="times">
+              <label for="rule-from" data-i18n="settings.rule_from"></label>
+              <input type="time" id="rule-from" value="09:00" />
+              <label for="rule-to" data-i18n="settings.rule_to"></label>
+              <input type="time" id="rule-to" value="18:00" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="rule-mode" data-i18n="settings.rule_keep"></label>
+            <select id="rule-mode">
+              <option value="system" data-i18n="mode.system"></option>
+              <option value="display" data-i18n="mode.display"></option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="rule-then" data-i18n="settings.rule_then"></label>
+            <select id="rule-then"></select>
+          </div>
+          <p class="error" id="rule-error" role="alert" hidden></p>
+          <div class="card-actions">
+            <button type="submit" class="btn btn-small btn-accent" data-i18n="settings.rule_save"></button>
+            <button type="button" class="btn btn-small btn-quiet" id="rule-cancel" data-i18n="settings.rule_cancel"></button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card" aria-labelledby="presence-title">
+        <h2 id="presence-title" data-i18n="settings.section_presence"></h2>
+        <div class="field">
+          <label class="field-text" for="presence">
+            <span data-i18n="settings.presence"></span>
+            <small data-i18n="settings.presence_hint"></small>
+          </label>
+          <input type="checkbox" id="presence" aria-describedby="presence-warning" />
+        </div>
+        <p class="warning" id="presence-warning">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3.5 2.8 19.5h18.4z" />
+            <path d="M12 10v4.5M12 17.2v.1" />
+          </svg>
+          <span data-i18n="settings.presence_warning"></span>
+        </p>
+      </section>
+
       <section class="card" id="lid-card" hidden aria-labelledby="lid-title">
         <h2 id="lid-title" data-i18n="settings.section_lid"></h2>
         <p class="notice" id="lid-policy" data-i18n="settings.lid_policy" hidden></p>

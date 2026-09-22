@@ -45,6 +45,20 @@
 - [x] **Reinstallazione sopra una Moka aperta con la modifica del coperchio attiva**: l'installer la chiude in modo pulito, l'impostazione torna "sospendi", niente `RunOnce`, niente registro, nessun processo rimasto
 - [x] **Disinstallazione con la modifica attiva**: stessa cosa, e in più via la cartella, la voce di disinstallazione, l'avvio automatico e i collegamenti
 
+2026-09-22, **LPT-MIKI**, Moka 0.0.4 in `tauri dev` con identifier `com.moka.dev` (un'altra Moka stava tenendo sveglio il PC: trappola 49). Stato letto con `invoke('get_state')` via CDP; sonde con `spike probes`.
+
+- [x] Regola "Programma aperto: notepad" (salvata come `notepad.exe`): aperto Blocco note, entro 5 s "Acceso · notepad.exe è aperto"; chiuso, entro 5 s "Spento"
+- [x] Regola duplicata, fascia oraria senza giorni, soglia del processore fuori elenco: rifiutate con messaggi tradotti, niente salvato
+- [x] "…e poi: spegni lo schermo" su una regola: alla chiusura del programma parte la finestrella "Schermo spento tra 59 s — La regola «Programma aperto · notepad.exe» non tiene più acceso il PC."; Annulla la chiude
+- [x] Spegnere dal pannello con una regola attiva: compare la domanda (focus su "Sospendi per un'ora"); sospese: "Regole sospese fino alle 14:54", e a Blocco note ancora aperto il PC resta spento; "Riprendi": di nuovo acceso subito, senza aspettare i 5 s
+- [x] `moka --while-pid <pid> --screen` inoltrato all'istanza aperta: "Acceso · il processo … è attivo", anche lo schermo; chiuso il processo: "Spento"
+- [x] `moka --pause-rules=2h` → "Regole sospese fino alle 15:55"; `moka --resume-rules` → tolte
+- [x] Fascia oraria che comprende adesso: accesa subito ("è fra le 13:25 e le 14:25"); "In carica" con l'alimentatore: accesa; processore sotto carico (16 processi al 100% per 15 s): compare "il processore è occupato"
+- [x] Regola "PC e schermo" attiva: il vapore sulla moka nel pannello
+- [x] Impostazioni: elenco con "Adesso" sulle regole che valgono, interruttore, "Tieni acceso", "Quando finisce", elimina; modulo con suggerimenti (14 programmi aperti), giorni feriali di default, errori tolti appena si corregge, Esc chiude prima il modulo
+- [x] Presenza attiva: l'inattività di Windows sale fino a 50 s e al controllo dopo torna a 0 da sola (F15)
+- [x] Contrasti delle parti nuove, pannello e Impostazioni, chiaro e scuro: nessun testo sotto soglia (minimo 4,95:1, il badge "Adesso")
+
 ## Da verificare
 
 Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) oppure un altro PC.
@@ -68,6 +82,20 @@ Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) opp
 - [ ] "…e poi" eseguito davvero: blocca, sospendi, iberna, arresta (non provati: avrebbero fermato il PC di lavoro)
 - [ ] Aggiornamento vero da una versione pubblicata alla successiva (serve il repo pubblico): mai durante una sessione, l'impostazione del coperchio rimessa prima
 - [ ] Promemoria stella dopo 5 avvii e 3 giorni
+
+### Regole e Presenza (0.0.4)
+
+- [ ] Menu della tray con regole salvate: c'è "Sospendi le regole per un'ora"; dopo il clic diventa "Riprendi le regole"
+- [ ] Clic sull'icona (con "accende o spegne") o tasto rapido mentre vale solo una regola: le regole si sospendono per un'ora
+- [ ] Schermo intero: un video a schermo intero nel browser, una presentazione di PowerPoint, un gioco
+- [ ] In chiamata: Teams, Zoom, Meet nel browser (microfono e webcam, entrambi); la chiamata finita libera il PC dopo ~30 s
+- [ ] Monitor esterno: collegato → acceso, scollegato → spento
+- [ ] Download vero (un file grande) con "…e poi: sospendi": a download finito, dopo 2 minuti, parte il conto alla rovescia
+- [ ] `moka --while programma-che-non-esiste.exe`: dopo ~10 s la notifica "Niente da seguire"
+- [ ] Soglia batteria con una regola attiva: sotto soglia la regola smette di tenere acceso, una sola notifica
+- [ ] Regola attiva e coperchio chiuso in carica (con "Anche a coperchio chiuso"): resta sveglio come una sessione
+- [ ] Presenza: F15 non fa niente di visibile in Word, Excel, Chrome, Teams, giochi; Teams resta "Disponibile" oltre il suo tempo di inattività
+- [ ] `powercfg /requests` (amministratore) con una regola attiva: `moka.exe` con il motivo "Moka: sveglio perché notepad.exe è aperto"
 
 ### Coperchio e batteria (0.0.2) — servono le mani sul portatile
 

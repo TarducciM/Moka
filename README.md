@@ -21,6 +21,8 @@ Tieni sveglio il tuo PC Windows, nello spirito di [Amphetamine](https://apps.app
 - Soglia batteria: sotto una certa carica la sessione finisce da sola
 - "…e poi": a fine sessione spegni lo schermo, blocca, sospendi, iberna o spegni, sempre dopo un conto alla rovescia annullabile; e 5 minuti prima un avviso con "+30 min"
 - Tasti rapidi globali per accendere, spegnere e spegnere lo schermo
+- Regole automatiche: sveglio mentre un programma è aperto, sei in chiamata, c'è un'app a schermo intero, il PC è in carica, è collegato un monitor esterno, c'è un download in corso, il processore è occupato, o in una fascia oraria. Ogni regola ha la sua modalità e il suo "…e poi", il pannello dice perché è acceso, e le regole si sospendono per un'ora con un clic
+- Presenza (facoltativa, spenta di default): dopo un minuto senza toccare niente preme F15, così niente salvaschermo, blocco per inattività o stato "Assente". Il blocco per inattività esiste per sicurezza: sui PC di lavoro può violare le regole aziendali
 - Aggiornamenti automatici firmati, mai durante una sessione
 - Chi tiene sveglio il PC e perché si vede in `powercfg /requests` ("Moka: sveglio per 2 h, fino alle 16:12")
 - Italiano e inglese
@@ -28,8 +30,8 @@ Tieni sveglio il tuo PC Windows, nello spirito di [Amphetamine](https://apps.app
 
 ### Cosa farà
 
-- Regole automatiche: tieni sveglio mentre un programma è aperto, sei in chiamata, c'è un'app a schermo intero, il PC è in carica, è collegato un monitor esterno, c'è un download in corso…
-- Presenza (facoltativa): evita salvaschermo e stato "Assente"
+- Diagnostica: perché il PC non dorme, o perché si è svegliato
+- Regole su disco USB e rete Wi-Fi
 - Pubblicazione su winget
 
 ### Riga di comando
@@ -47,6 +49,10 @@ moka --quit           chiude Moka
 moka --then sleep     a fine sessione: display-off, lock, sleep, hibernate, shutdown
 moka --lid / --no-lid questa sessione resta accesa (o no) a coperchio chiuso
 moka --restore-lid    rimette l'impostazione del coperchio com'era
+moka --while ffmpeg.exe    sveglio finché gira ffmpeg (con --screen e --then)
+moka --while-pid 1234      sveglio finché vive il processo 1234
+moka --pause-rules         sospende le regole per un'ora (--pause-rules=2h)
+moka --resume-rules        le riattiva
 ```
 
 Se Moka è già aperta, il comando arriva a lei.
@@ -102,6 +108,8 @@ Keep your Windows PC awake, in the spirit of [Amphetamine](https://apps.apple.co
 - Battery cutoff: the session ends on its own below a set charge
 - "…and then": at the end of a session turn off the screen, lock, sleep, hibernate or shut down, always after a cancellable countdown; and 5 minutes before, a warning with "+30 min"
 - Global keyboard shortcuts to turn it on, off, and turn off the screen
+- Automatic rules: stay awake while a program is open, you're in a call, a full-screen app is showing, the PC is charging, an external monitor is connected, a download is running, the processor is busy, or during a time window. Each rule has its own mode and "…and then", the panel says why it's on, and rules pause for an hour with one click
+- Presence (optional, off by default): after a minute without input it presses F15, so no screen saver, idle lock or "Away" status. The idle lock exists for security: on work PCs this may break company rules
 - Signed automatic updates, never during a session
 - `powercfg /requests` shows who is keeping the PC awake and why ("Moka: awake for 2 h, until 16:12")
 - Italian and English UI
@@ -109,8 +117,8 @@ Keep your Windows PC awake, in the spirit of [Amphetamine](https://apps.apple.co
 
 ### Planned
 
-- Automatic rules: stay awake while an app is running, you're on a call, a fullscreen app is showing, the PC is plugged in, an external monitor is connected, a download is in progress…
-- Presence (optional): prevents the screensaver and the "Away" status
+- Diagnostics: why the PC won't sleep, or why it woke up
+- Rules for USB drives and Wi-Fi networks
 - Publishing on winget
 
 ### Command line
@@ -128,6 +136,10 @@ moka --quit           quit Moka
 moka --then sleep     at the end: display-off, lock, sleep, hibernate, shutdown
 moka --lid / --no-lid this session stays on (or not) with the lid closed
 moka --restore-lid    put the lid setting back as it was
+moka --while ffmpeg.exe    awake while ffmpeg runs (with --screen and --then)
+moka --while-pid 1234      awake while process 1234 is alive
+moka --pause-rules         pause rules for an hour (--pause-rules=2h)
+moka --resume-rules        resume them
 ```
 
 If Moka is already running, the command goes to it.

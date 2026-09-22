@@ -17,6 +17,7 @@ use crate::cli::Action;
 use crate::i18n::{t, tv, Lang};
 use crate::lidplan::Effect;
 use crate::popover;
+use crate::probes::Probes;
 use crate::session::{Mode, Spec, ThenAct};
 use crate::state::{AppState, Core, Notice};
 use crate::sys;
@@ -44,6 +45,20 @@ pub fn with_core<T>(app: &AppHandle, f: impl FnOnce(&mut Core) -> T) -> T {
     run_effects(effects, modern_standby);
     show_notices(app, lang, notices);
     out
+}
+
+/// Il giro delle regole (thread `moka-rules`, ogni 5 s). Le sonde girano
+/// fuori dal lock: elenco dei processi e registro costano qualche
+/// millisecondo, e il pannello non deve aspettarle.
+pub fn rules_tick(app: &AppHandle, probes: &mut Probes) {
+    let st = app.state::<AppState>();
+    let needs = st.core.lock().unwrap().rules_needs();
+    let seen = probes.observe(needs, sys::now().tick_ms);
+    let changed = st.core.lock().unwrap().update_rules(seen, sys::now());
+    if changed {
+        // Solo per svuotare effetti e notifiche e ridisegnare.
+        with_core(app, |_| ());
+    }
 }
 
 /// Le azioni sul sistema, fuori dal lock e su un thread a parte: una
@@ -80,6 +95,14 @@ fn show_notices(app: &AppHandle, lang: Lang, notices: Vec<Notice>) {
                         "notify.battery_body",
                         &[("percent", &percent.to_string())],
                     ))
+                    .show();
+            }
+            Notice::WhileNotFound(name) => {
+                let _ = app
+                    .notification()
+                    .builder()
+                    .title(t(lang, "notify.while_title"))
+                    .body(tv(lang, "notify.while_body", &[("name", &name)]))
                     .show();
             }
         }
@@ -183,6 +206,15 @@ pub fn apply_cli(app: &AppHandle, action: Action, from_second_instance: bool) {
         Action::SetThen(act) => {
             with_core(app, |c| c.set_then(act, sys::now()));
         }
+        Action::While { kind, mode, then } => {
+            with_core(app, |c| c.add_temp_rule(kind, mode, then, sys::now()));
+        }
+        Action::PauseRules(minutes) => {
+            with_core(app, |c| c.pause_rules(Some(minutes), sys::now()));
+        }
+        Action::ResumeRules => {
+            with_core(app, |c| c.resume_rules(sys::now()));
+        }
         // Gestita in main.rs, prima di avviare Tauri: qui non arriva mai.
         Action::RestoreLid => {}
     }
@@ -257,9 +289,9 @@ fn refresh(app: &AppHandle, emit: bool) {
         ui.tooltip = view.tooltip.clone();
     }
 
-    let menu_key = (lang, durations, view.dto.lid_row);
+    let menu_key = (lang, durations, view.dto.lid_row, view.dto.has_rules);
     if ui.menu_key.as_ref() != Some(&menu_key) {
-        match TrayMenu::build(app, lang, &menu_key.1, menu_key.2) {
+        match TrayMenu::build(app, lang, &menu_key.1, menu_key.2, menu_key.3) {
             Ok(menu) => {
                 let _ = tray_icon.set_menu(Some(menu.menu.clone()));
                 ui.menu = Some(menu);
@@ -269,7 +301,14 @@ fn refresh(app: &AppHandle, emit: bool) {
             Err(err) => eprintln!("moka: menu non costruito: {err}"),
         }
     }
-    let menu_view = (view.status.clone(), view.active, view.display, view.dto.lid);
+    let paused = view.dto.rules_paused.is_some();
+    let menu_view = (
+        view.status.clone(),
+        view.active,
+        view.display,
+        view.dto.lid,
+        paused,
+    );
     if ui.menu_view.as_ref() != Some(&menu_view) {
         if let Some(menu) = &ui.menu {
             menu.update(
@@ -279,6 +318,7 @@ fn refresh(app: &AppHandle, emit: bool) {
                     active: view.active,
                     display: view.display,
                     lid: view.dto.lid,
+                    rules_paused: paused,
                 },
             );
         }

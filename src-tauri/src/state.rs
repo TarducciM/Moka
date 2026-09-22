@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::sync::{Condvar, Mutex};
 use std::time::Duration;
 
-use chrono::{Local, Timelike};
+use chrono::{Datelike, Local, TimeZone, Timelike};
 use serde::Serialize;
 
 use crate::capabilities::{self, Capabilities};
@@ -21,6 +21,8 @@ use crate::lid::{self, LidAction};
 use crate::lidoverride::{Overrides, WindowsBackend};
 use crate::lidplan::{self, Effect, Force, Inputs, LidAct, Tracker, World};
 use crate::power::{Needs, PowerRequest};
+use crate::probes::Seen;
+use crate::rules::{self, Engine, Observation, Rule, RuleKind};
 use crate::session::{Mode, Now, Session, Spec, ThenAct};
 use crate::settings::{LidMode, Memory, SavedSession, Settings};
 use crate::sys;
@@ -70,11 +72,59 @@ pub struct Paths {
     pub lid_log: PathBuf,
 }
 
-/// Qualcosa da dire all'utente con una notifica.
+/// Le regole sospese dall'utente ("Sospendi per un'ora").
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RulePause {
+    /// Fino a questo tick (e a quest'ora, per dirla).
+    Until { tick_ms: u64, wall_ms: i64 },
+    /// Fino al prossimo avvio di Moka: non si salva su disco apposta.
+    UntilRestart,
+}
+
+/// Una regola nata dalla riga di comando (`--while`, `--while-pid`): vive
+/// solo finché il suo processo è vivo, e non si salva.
+#[derive(Debug, Clone)]
+pub struct TempRule {
+    pub rule: Rule,
+    /// Il processo è stato visto almeno una volta.
+    pub seen: bool,
+    pub created_tick: u64,
+}
+
+/// Perché una regola non è stata aggiunta.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RuleError {
+    Invalid,
+    TooMany,
+    Duplicate,
+    Save(String),
+}
+
+/// Una regola da riga di comando il cui processo non compare entro 10 s si
+/// scarta: probabilmente era già finito, o il nome era sbagliato.
+const TEMP_GRACE_MS: u64 = 10_000;
+/// Gli id delle regole temporanee partono da qui, lontano da quelle salvate.
+const TEMP_ID_BASE: u32 = 1_000_000;
+
+#[derive(Default)]
+pub struct RulesRuntime {
+    engine: Engine,
+    /// Le regole che tengono sveglio il PC adesso (id).
+    pub active: Vec<u32>,
+    pub temp: Vec<TempRule>,
+    pub paused: Option<RulePause>,
+    next_temp: u32,
+    /// La soglia batteria ha fermato le regole (per dirlo una volta sola).
+    battery_notified: bool,
+}
+
+/// Qualcosa da dire all'utente con una notifica.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Notice {
-    /// La sessione è finita per la soglia batteria.
+    /// La sessione (o le regole) si sono fermate per la soglia batteria.
     BatteryStopped(u8),
+    /// `--while NOME`: il programma non è comparso entro 10 secondi.
+    WhileNotFound(String),
 }
 
 /// Tutto ciò che riguarda il portatile: coperchio, alimentazione, monitor.
@@ -141,6 +191,7 @@ pub struct Core {
     pub lang: Lang,
     pub version: String,
     pub lid: LidRuntime,
+    pub rules: RulesRuntime,
     power: PowerRequest,
     paths: Paths,
     logon_id: u64,
@@ -148,6 +199,8 @@ pub struct Core {
     pub effects: Vec<Effect>,
     pub notices: Vec<Notice>,
     pub countdown: Option<Countdown>,
+    /// Il conto alla rovescia viene dalla fine di questa regola.
+    countdown_rule: Option<String>,
     /// L'avviso "si spegne tra 5 minuti" resta visibile fino a questo tick.
     pub warning_until: Option<u64>,
     warned: bool,
@@ -169,6 +222,7 @@ impl Core {
         let mut core = Core {
             lang: Lang::resolve(settings.language),
             lid: LidRuntime::new(paths.lid_log.clone()),
+            rules: RulesRuntime::default(),
             settings,
             memory,
             session,
@@ -179,6 +233,7 @@ impl Core {
             effects: Vec::new(),
             notices: Vec::new(),
             countdown: None,
+            countdown_rule: None,
             warning_until: None,
             warned: false,
             update_version: None,
@@ -199,7 +254,21 @@ impl Core {
     fn apply(&mut self, now: Now) {
         self.generation += 1;
         self.reconcile_lid(now);
+        let rule_display = self.active_rules().any(|r| r.mode == Mode::Display);
         let (needs, reason) = match &self.session {
+            // Nessuna sessione, ma una regola: sveglio per lei.
+            None if !self.rules.active.is_empty() => (
+                Needs {
+                    system: true,
+                    display: rule_display,
+                    execution: self.lid.caps.modern_standby && self.lid.held(),
+                },
+                tv(
+                    self.lang,
+                    "reason.rule",
+                    &[("reason", &self.reasons().join(", "))],
+                ),
+            ),
             // Durante il conto alla rovescia il PC resta sveglio: "sveglio
             // finché finisce, poi spegni" non deve addormentarsi un minuto prima.
             None => match self.countdown {
@@ -220,7 +289,8 @@ impl Core {
             Some(s) => (
                 Needs {
                     system: true,
-                    display: s.mode == Mode::Display,
+                    // Vale la modalità più forte fra sessione e regole.
+                    display: s.mode == Mode::Display || rule_display,
                     // Ipotesi 1 dello spike (docs/SPIKE.md): a coperchio chiuso
                     // su standby moderno potrebbe servire anche questa. Non
                     // costa niente; lo spike dirà se basta, o se è inutile.
@@ -256,7 +326,8 @@ impl Core {
         let mode = self.lid_mode();
         let inputs = Inputs {
             mode,
-            session_lid: self.session.is_some_and(|s| s.lid),
+            session_lid: self.session.is_some_and(|s| s.lid)
+                || (!self.rules.active.is_empty() && self.memory.last_lid),
             desk_mode: self.settings.lid_asked
                 && self.settings.desk_mode
                 && !self.lid.policy_managed,
@@ -336,6 +407,7 @@ impl Core {
         if self.session.is_some() && self.lid.battery_armed {
             self.lid.battery_armed = false;
             self.session = None;
+            self.rules.battery_notified = true;
             self.notices.push(Notice::BatteryStopped(percent));
             self.apply(now);
         }
@@ -471,11 +543,308 @@ impl Core {
         self.save_memory();
     }
 
+    /// Accende o spegne. Se a tenere sveglio il PC è solo una regola,
+    /// "spegni" vuol dire sospendere le regole per un'ora: altrimenti la regola
+    /// riaccenderebbe tutto al controllo successivo. (Il pannello chiede prima.)
     pub fn toggle(&mut self, now: Now) {
         if self.session.is_some() {
             self.stop(now);
+        } else if !self.rules.active.is_empty() {
+            self.pause_rules(Some(60), now);
         } else {
             self.start(None, None, None, None, now);
+        }
+    }
+
+    /// Il PC è tenuto sveglio da Moka (sessione o regola).
+    pub fn awake(&self) -> bool {
+        self.session.is_some() || !self.rules.active.is_empty()
+    }
+
+    /// Le regole salvate e quelle da riga di comando, in un solo elenco.
+    pub fn all_rules(&self) -> impl Iterator<Item = &Rule> {
+        self.settings
+            .rules
+            .iter()
+            .chain(self.rules.temp.iter().map(|t| &t.rule))
+    }
+
+    fn active_rules(&self) -> impl Iterator<Item = &Rule> {
+        self.all_rules()
+            .filter(|r| self.rules.active.contains(&r.id))
+    }
+
+    /// "obs64.exe è aperto", per ogni regola che vale adesso.
+    pub fn reasons(&self) -> Vec<String> {
+        self.active_rules()
+            .map(|r| i18n::rule_reason(self.lang, &r.kind))
+            .collect()
+    }
+
+    /// Quali sonde servono al thread delle regole.
+    pub fn rules_needs(&self) -> rules::Needs {
+        rules::needs(self.all_rules())
+    }
+
+    /// Batteria sotto soglia, a batteria: le regole non tengono sveglio il PC.
+    fn battery_block(&self) -> bool {
+        let threshold = self.settings.battery_threshold;
+        threshold > 0
+            && !self.lid.on_ac
+            && self.lid.battery.is_some_and(|b| u32::from(b) <= threshold)
+    }
+
+    /// Fa partire il "…e poi": 60 s con la finestra, o 10 s in silenzio a
+    /// coperchio chiuso (nessuno vedrebbe la finestra).
+    /// `rule`: la regola finita ("Programma aperto · notepad.exe"), per
+    /// dirlo nella finestra; `None` = una sessione.
+    fn begin_countdown(&mut self, act: ThenAct, mode: Mode, rule: Option<String>, now: Now) {
+        self.countdown_rule = rule;
+        let silent = self.lid.tracker.is_closed();
+        self.countdown = Some(Countdown {
+            act,
+            at_tick: now.tick_ms
+                + if silent {
+                    lidplan::GRACE_MS
+                } else {
+                    COUNTDOWN_MS
+                },
+            silent,
+            mode,
+        });
+    }
+
+    /// Il giro del thread delle regole (ogni 5 s). `true` se è cambiato qualcosa.
+    pub fn update_rules(&mut self, seen: Seen, now: Now) -> bool {
+        let local = Local
+            .timestamp_millis_opt(now.wall_ms)
+            .single()
+            .unwrap_or_else(Local::now);
+        let obs = Observation {
+            processes: seen.processes,
+            pids: seen.pids,
+            fullscreen: seen.fullscreen,
+            call: seen.call,
+            on_ac: self.lid.on_ac,
+            external_monitors: self.lid.externals,
+            net_kbps: seen.net_kbps,
+            cpu_percent: seen.cpu_percent,
+            weekday: local.weekday().num_days_from_monday() as u8,
+            minute: (local.hour() * 60 + local.minute()) as u16,
+        };
+
+        let mut changed = false;
+        if let Some(RulePause::Until { tick_ms, .. }) = self.rules.paused {
+            if now.tick_ms >= tick_ms {
+                self.rules.paused = None;
+                changed = true;
+            }
+        }
+
+        let rules: Vec<Rule> = self.all_rules().cloned().collect();
+        let holding = self.rules.engine.evaluate(&rules, &obs, now.tick_ms);
+
+        // Regole da riga di comando: vivono finché vive il loro processo.
+        let mut finished: Vec<Rule> = Vec::new();
+        let mut not_found: Vec<Rule> = Vec::new();
+        self.rules.temp.retain_mut(|t| {
+            if holding.contains(&t.rule.id) {
+                t.seen = true;
+                true
+            } else if t.seen {
+                finished.push(t.rule.clone());
+                false
+            } else if now.tick_ms.saturating_sub(t.created_tick) < TEMP_GRACE_MS {
+                true
+            } else {
+                not_found.push(t.rule.clone());
+                false
+            }
+        });
+        for r in not_found {
+            changed = true;
+            let name = match r.kind {
+                RuleKind::Process { exe } => exe,
+                RuleKind::Pid { pid } => pid.to_string(),
+                _ => continue,
+            };
+            self.notices.push(Notice::WhileNotFound(name));
+        }
+        if !finished.is_empty() {
+            changed = true;
+        }
+
+        // Sotto la soglia batteria le regole non tengono sveglio il PC: è
+        // automatico, l'utente non l'ha chiesto adesso.
+        let blocked = self.battery_block();
+        if blocked && !self.rules.active.is_empty() && !self.rules.battery_notified {
+            self.rules.battery_notified = true;
+            if let Some(p) = self.lid.battery {
+                self.notices.push(Notice::BatteryStopped(p));
+            }
+        }
+        if !blocked {
+            self.rules.battery_notified = false;
+        }
+        let temp_ids: Vec<u32> = self.rules.temp.iter().map(|t| t.rule.id).collect();
+        let active: Vec<u32> = if blocked {
+            Vec::new()
+        } else {
+            holding
+                .into_iter()
+                .filter(|id| temp_ids.contains(id) || self.rules.paused.is_none())
+                .collect()
+        };
+
+        if active == self.rules.active && !changed {
+            return false;
+        }
+        let ended: Vec<Rule> = rules
+            .iter()
+            .filter(|r| self.rules.active.contains(&r.id) && !active.contains(&r.id))
+            .cloned()
+            .chain(finished)
+            .collect();
+        let gained = active.iter().any(|id| !self.rules.active.contains(id));
+        self.rules.active = active;
+        if gained && self.session.is_none() {
+            // Qualcosa ha di nuovo bisogno del PC (il download è ripartito):
+            // il "…e poi" in attesa non ha più senso.
+            self.countdown = None;
+        }
+        // "…e poi" di una regola: solo se è finita da sé (non per la
+        // batteria) e adesso niente tiene più sveglio il PC.
+        if !blocked
+            && self.session.is_none()
+            && self.rules.active.is_empty()
+            && self.countdown.is_none()
+        {
+            if let Some(r) = ended.iter().find(|r| r.then != ThenAct::None) {
+                let title = i18n::rule_title(self.lang, &r.kind);
+                let detail = i18n::rule_detail(self.lang, &r.kind);
+                let label = if detail.is_empty() {
+                    title
+                } else {
+                    format!("{title} · {detail}")
+                };
+                self.begin_countdown(r.then, r.mode, Some(label), now);
+            }
+        }
+        self.apply(now);
+        if self.countdown.is_some() {
+            self.lid.tracker.cancel_released();
+        }
+        true
+    }
+
+    /// "Sospendi le regole": per `minutes` minuti, o fino al prossimo avvio.
+    pub fn pause_rules(&mut self, minutes: Option<u32>, now: Now) {
+        self.rules.paused = Some(match minutes {
+            Some(m) => {
+                let ms = u64::from(m.clamp(1, 24 * 60)) * 60_000;
+                RulePause::Until {
+                    tick_ms: now.tick_ms + ms,
+                    wall_ms: now.wall_ms + ms as i64,
+                }
+            }
+            None => RulePause::UntilRestart,
+        });
+        // "Sospendi" ferma tutto ciò che è automatico, anche un `--while` in
+        // corso: chi spegne vuole il PC libero di dormire. Un `--while` chiesto
+        // dopo, durante la pausa, vale invece (è una richiesta esplicita).
+        self.rules.temp.clear();
+        self.rules.active.clear();
+        self.apply(now);
+    }
+
+    pub fn resume_rules(&mut self, now: Now) {
+        self.rules.paused = None;
+        self.apply(now);
+    }
+
+    /// `--while ffmpeg.exe` / `--while-pid 1234`.
+    pub fn add_temp_rule(&mut self, kind: RuleKind, mode: Mode, then: ThenAct, now: Now) {
+        self.rules.next_temp += 1;
+        self.rules.temp.push(TempRule {
+            rule: Rule {
+                id: TEMP_ID_BASE + self.rules.next_temp,
+                enabled: true,
+                mode,
+                then,
+                kind,
+            },
+            seen: false,
+            created_tick: now.tick_ms,
+        });
+        self.generation += 1;
+    }
+
+    /// Nuova regola salvata.
+    pub fn add_rule(&mut self, kind: RuleKind, mode: Mode, then: ThenAct) -> Result<(), RuleError> {
+        let kind = rules::validate(kind).ok_or(RuleError::Invalid)?;
+        if self.settings.rules.len() >= rules::MAX_RULES {
+            return Err(RuleError::TooMany);
+        }
+        // Due regole uguali non servono: si cambia quella che c'è.
+        if self.settings.rules.iter().any(|r| r.kind == kind) {
+            return Err(RuleError::Duplicate);
+        }
+        let id = rules::next_id(&self.settings.rules);
+        self.settings.rules.push(Rule {
+            id,
+            enabled: true,
+            mode,
+            then,
+            kind,
+        });
+        self.save_settings()
+            .map_err(|e| RuleError::Save(e.to_string()))
+    }
+
+    pub fn update_rule(
+        &mut self,
+        id: u32,
+        enabled: Option<bool>,
+        mode: Option<Mode>,
+        then: Option<ThenAct>,
+    ) -> std::io::Result<()> {
+        if let Some(r) = self.settings.rules.iter_mut().find(|r| r.id == id) {
+            if let Some(e) = enabled {
+                r.enabled = e;
+                if !e {
+                    self.rules.active.retain(|a| *a != id);
+                }
+            }
+            if let Some(m) = mode {
+                r.mode = m;
+            }
+            if let Some(t) = then {
+                r.then = t;
+            }
+        }
+        self.save_settings()
+    }
+
+    pub fn delete_rule(&mut self, id: u32) -> std::io::Result<()> {
+        self.settings.rules.retain(|r| r.id != id);
+        self.rules.active.retain(|a| *a != id);
+        self.save_settings()
+    }
+
+    /// Presenza: F15 solo se è attiva e Moka sta tenendo sveglio il PC.
+    pub fn presence_wanted(&self) -> bool {
+        self.settings.presence && self.awake()
+    }
+
+    /// "Regole sospese fino alle 15:30" / "… fino al riavvio di Moka".
+    pub fn rules_paused_label(&self) -> Option<String> {
+        match self.rules.paused? {
+            RulePause::UntilRestart => Some(t(self.lang, "rules.paused_restart")),
+            RulePause::Until { wall_ms, .. } => Some(tv(
+                self.lang,
+                "rules.paused_until",
+                &[("time", &i18n::clock_label(wall_ms))],
+            )),
         }
     }
 
@@ -564,18 +933,7 @@ impl Core {
             // Se il PC ha dormito oltre la scadenza, la sessione finisce e
             // basta: niente spegnimento a sorpresa appena lo si riapre.
             if s.then != ThenAct::None && s.overdue_ms(now) <= LATE_MS {
-                let silent = self.lid.tracker.is_closed();
-                self.countdown = Some(Countdown {
-                    act: s.then,
-                    at_tick: now.tick_ms
-                        + if silent {
-                            lidplan::GRACE_MS
-                        } else {
-                            COUNTDOWN_MS
-                        },
-                    silent,
-                    mode: s.mode,
-                });
+                self.begin_countdown(s.then, s.mode, None, now);
             }
             self.apply(now);
             if self.countdown.is_some() {
@@ -661,7 +1019,10 @@ impl Core {
             return Some(ToastDto {
                 kind: "countdown",
                 title: tv(lang, countdown_key(c.act), &[("s", &seconds.to_string())]),
-                body: t(lang, "toast.countdown_body"),
+                body: match &self.countdown_rule {
+                    Some(rule) => tv(lang, "toast.countdown_rule", &[("rule", rule)]),
+                    None => t(lang, "toast.countdown_body"),
+                },
                 act: Some(tv(lang, "toast.now", &[("action", &label)])),
                 seconds: Some(seconds),
                 total_seconds: COUNTDOWN_MS / 1000,
@@ -700,20 +1061,37 @@ impl Core {
     pub fn view(&self, now: Now) -> View {
         let lang = self.lang;
         let session = self.session.as_ref();
-        let status = i18n::status_label(lang, session, now);
+        let reasons = self.reasons();
         let active = session.is_some();
+        let awake = self.awake();
+        let status = if session.is_none() && !reasons.is_empty() {
+            tv(
+                lang,
+                "state.on_rule",
+                &[("reason", &short_reasons(lang, &reasons))],
+            )
+        } else {
+            i18n::status_label(lang, session, now)
+        };
         let mode = session.map(|s| s.mode).unwrap_or(self.memory.last_mode);
-        let icon = match session.map(|s| s.mode) {
-            None => IconState::Off,
-            Some(Mode::System) => IconState::System,
-            Some(Mode::Display) => IconState::Display,
+        let rule_display = self.active_rules().any(|r| r.mode == Mode::Display);
+        let icon = if !awake {
+            IconState::Off
+        } else if session.is_some_and(|s| s.mode == Mode::Display) || rule_display {
+            IconState::Display
+        } else {
+            IconState::System
         };
         let laptop = self.lid.caps.lid_present;
         let lid_mode = self.lid_mode();
         View {
             icon,
-            tooltip: i18n::tooltip(lang, session, now, self.lid.held() && active),
-            display: active && mode == Mode::Display,
+            tooltip: if session.is_none() && awake {
+                format!("Moka · {status}")
+            } else {
+                i18n::tooltip(lang, session, now, self.lid.held() && active)
+            },
+            display: icon == IconState::Display,
             dto: StateDto {
                 active,
                 mode,
@@ -752,9 +1130,14 @@ impl Core {
                 then_row: !session.is_some_and(|s| s.spec == Spec::Never),
                 update: self.update_version.clone(),
                 star: self.star_due(now),
+                awake,
+                reasons,
+                rules_paused: self.rules_paused_label(),
+                has_rules: !self.settings.rules.is_empty(),
+                display_on: icon == IconState::Display,
             },
             status,
-            active,
+            active: awake,
         }
     }
 
@@ -833,6 +1216,26 @@ pub struct StateDto {
     pub update: Option<String>,
     /// Mostrare il promemoria stella.
     pub star: bool,
+    /// Il PC è tenuto sveglio (sessione o regola); `active` è solo la sessione.
+    pub awake: bool,
+    /// Perché: "obs64.exe è aperto", per ogni regola attiva.
+    pub reasons: Vec<String>,
+    pub rules_paused: Option<String>,
+    pub has_rules: bool,
+    /// Anche lo schermo resta acceso adesso (sessione o regola).
+    pub display_on: bool,
+}
+
+/// "obs64.exe è aperto", oppure "obs64.exe è aperto +2".
+fn short_reasons(lang: Lang, reasons: &[String]) -> String {
+    match reasons {
+        [] => String::new(),
+        [one] => one.clone(),
+        [first, rest @ ..] => format!(
+            "{first} {}",
+            tv(lang, "rules.more", &[("n", &rest.len().to_string())])
+        ),
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -875,8 +1278,8 @@ pub struct UiCache {
     pub icon_key: Option<(IconState, bool, u32)>,
     pub tooltip: String,
     pub menu: Option<TrayMenu>,
-    pub menu_key: Option<(Lang, Vec<u32>, bool)>,
-    pub menu_view: Option<(String, bool, bool, bool)>,
+    pub menu_key: Option<(Lang, Vec<u32>, bool, bool)>,
+    pub menu_view: Option<(String, bool, bool, bool, bool)>,
 }
 
 pub struct AppState {

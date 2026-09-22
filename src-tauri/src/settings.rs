@@ -15,6 +15,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::rules::{self, Rule};
 use crate::session::{parse_duration, Mode, Now, Session, Spec, ThenAct, MAX_MINUTES};
 
 pub const DEFAULT_DURATIONS: [u32; 5] = [15, 30, 60, 120, 240];
@@ -99,6 +100,10 @@ pub struct Settings {
     pub shortcut_toggle: String,
     /// Tasto rapido per spegnere lo schermo ("" = nessuno).
     pub shortcut_screen_off: String,
+    /// Regole automatiche ("tieni sveglio mentre…").
+    pub rules: Vec<Rule>,
+    /// Presenza: F15 quando l'utente è inattivo. Spenta di default.
+    pub presence: bool,
 }
 
 impl Default for Settings {
@@ -116,6 +121,8 @@ impl Default for Settings {
             warn_before_end: true,
             shortcut_toggle: String::new(),
             shortcut_screen_off: String::new(),
+            rules: Vec::new(),
+            presence: false,
         }
     }
 }
@@ -159,6 +166,8 @@ impl Settings {
                 .and_then(Value::as_str)
                 .map(normalize_shortcut)
                 .unwrap_or_default(),
+            rules: rules::from_value(v.get("rules")),
+            presence: bool_field(v, "presence").unwrap_or(d.presence),
         }
         .dedup_shortcuts()
     }
@@ -461,6 +470,25 @@ mod tests {
             "shortcutScreenOff": "Ctrl+Shift+F9"
         }));
         assert_eq!(s.shortcut_screen_off, "", "lo stesso tasto non fa due cose");
+    }
+
+    #[test]
+    fn rules_and_presence_survive_a_roundtrip() {
+        let v = json!({
+            "presence": true,
+            "rules": [{ "id": 4, "enabled": true, "mode": "display", "then": "sleep", "kind": "process", "exe": "ffmpeg" }]
+        });
+        let s = Settings::from_value(&v);
+        assert!(s.presence);
+        assert_eq!(s.rules.len(), 1);
+        assert_eq!(
+            s.rules[0].kind,
+            crate::rules::RuleKind::Process {
+                exe: "ffmpeg.exe".into()
+            }
+        );
+        let again = Settings::from_value(&serde_json::to_value(&s).unwrap());
+        assert_eq!(again, s);
     }
 
     #[test]
