@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-22 — misura: il pannello pigro costa 3 secondi, e resta com'è
+
+Nessun cambio di codice (versione invariata, 0.0.7): una strada provata, misurata e scartata, scritta perché non la si riprovi a vuoto.
+
+- Creare il pannello solo alla prima apertura funziona e porta Moka a **5,3 MB in tutto, zero processi WebView2** finché nessuno lo apre.
+- Ma la prima apertura costa **3,2 s** su LPT-MIKI: non è il pannello, è l'avvio a freddo del runtime WebView2, che tocca al primo webview del processo (le Impostazioni, aperte dopo con il runtime già vivo, ci mettono 0,2 s).
+- Per una finestra che deve comparire appena si clicca sull'icona non va bene, e tenere il pannello creato serve anche a far comparire puntuale la finestrella degli avvisi. Resta quindi com'è, con la memoria bassa mentre è nascosto (0.0.5). Dettagli e numeri in `docs/ROADMAP.md`.
+
 ## 2026-09-22 — 0.0.7: quello che si vede e quello che c'è su disco non divergono più
 
 Primo giro di prove con **dati ostili e scritture impedite**, mai fatto su Moka (è la stessa passata che nelle app MTSolutions ha trovato bug veri).

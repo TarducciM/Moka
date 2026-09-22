@@ -150,7 +150,19 @@ Quando il pannello è nascosto Moka chiede a WebView2 `MemoryUsageTargetLevel = 
 - 0.0.3 nascosta da ore, senza la chiamata: 138 MB;
 - memoria privata invariata, ~103 MB per entrambe: WebView2 restituisce la RAM fisica, non quella allocata.
 
-La seconda strada (creare il pannello solo quando si apre) resta da valutare: costerebbe qualche decimo di secondo a ogni apertura, per circa 100 MB di memoria privata.
+**La seconda strada — creare il pannello solo quando si apre — è stata provata il 2026-09-22 e scartata.** Funzionava (finestra creata su un thread a parte, mostrata quando la pagina si era disegnata e misurata, così compariva già della misura giusta), e con il pannello mai aperto Moka stava a **5,3 MB in tutto, zero processi WebView2**. Il problema è il prezzo della prima apertura, misurato su LPT-MIKI:
+
+| | tempo |
+|---|---|
+| prima apertura del pannello, con il runtime WebView2 spento | **3,2 s** |
+| finestra Impostazioni, con il runtime già vivo | 0,2 s |
+| la seconda istanza che porta il comando (`moka --off`) | 0,1 s |
+
+Quei tre secondi non sono il pannello: sono l'**avvio a freddo del runtime WebView2**, che tocca al primo webview del processo. Per una finestra che deve comparire sotto il dito appena si clicca sull'icona non è accettabile, e scaldare il runtime all'avvio vorrebbe dire creare comunque un webview, cioè rinunciare al risparmio.
+
+C'è anche un effetto secondario che conta: tenendo il pannello creato, il runtime resta caldo anche per la **finestrella degli avvisi** ("si spegne tra 5 minuti", il conto alla rovescia di "…e poi"), che è pigra e deve comparire puntuale.
+
+Resta quindi il pannello creato all'avvio, con la memoria bassa mentre è nascosto. Se un giorno si volesse riprovare, il modo giusto non è la creazione pigra ma un modo per scaldare il runtime senza pagarne la memoria: oggi non esiste.
 
 **Misure della build di release 0.0.1** (LPT-MIKI, 2026-09-22):
 
@@ -683,6 +695,7 @@ Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
 60. Un'altezza massima fissa per una finestra che si adatta al contenuto (erano 720 px) più `overflow: hidden` sulla pagina è un fondo che sparisce: con due schede aperte insieme il pannello arrivava a 928 px. Il tetto giusto è l'area di lavoro del monitor, e oltre la pagina deve scorrere. Si vedeva già in una schermata della 0.0.4 (il pannello finiva a "Cosa tenere acceso"), ma nessuno ha guardato il fondo: guardare **tutta** la schermata, non solo la parte nuova.
 61. Cambiare i dati in memoria e **poi** salvarli: se il salvataggio non riesce (cartella non scrivibile, disco pieno) l'app mostra una cosa e il disco ne contiene un'altra, e al riavvio l'utente ritrova qualcosa che aveva "cambiato". Si cambia una copia e la si mette solo a salvataggio riuscito (`Core::set_settings`). La sessione invece deve continuare anche se non si può scrivere: quella sta in memoria per scelta.
 62. Un file reso di sola lettura non impedisce a un salvataggio atomico di sostituirlo: su Windows il permesso di cancellazione può arrivare dalla **cartella**. Per provare davvero un salvataggio che fallisce va negata la scrittura sulla cartella, non sul file.
+63. Il **primo** webview di un processo paga l'avvio a freddo del runtime WebView2 (3,2 s su LPT-MIKI); i successivi costano 0,2 s. Quindi una finestra che deve comparire all'istante non può essere la prima: il pannello di Moka si crea all'avvio anche per questo, e tiene il runtime caldo per la finestrella degli avvisi.
 
 ### Trovate scrivendo la 0.0.4 (2026-09-22)
 
