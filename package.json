@@ -1,7 +1,7 @@
 {
   "name": "moka",
   "private": true,
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Keep your Windows PC awake from the tray. Local, no telemetry.",
   "license": "MIT",
   "type": "module",

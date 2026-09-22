@@ -70,6 +70,11 @@
 - [x] Memoria: a pannello nascosto 95 MB di working set per i processi WebView2 (254 aperto), contro 138 MB della 0.0.3 nascosta da ore; memoria privata uguale (~103 MB)
 - [x] Contrasti della scheda Diagnostica (anche con una riga d'esempio di "chi lo tiene sveglio" e l'errore), chiaro e scuro: nessun testo sotto soglia; il bordo "probabile causa" ≥ 5,8:1
 
+2026-09-22, **LPT-MIKI**, Moka 0.0.6.
+
+- [x] Pannello con benvenuto e domanda sul coperchio (prima avvio): alto 928 px, tutto visibile fino a "Spegni lo schermo ora" (con la 0.0.5 si fermava a 720 e il fondo era tagliato)
+- [x] Contenuto più alto dello schermo: la finestra si ferma all'area di lavoro (1368 px su 1392) e la pagina scorre
+
 ## Da verificare
 
 Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) oppure un altro PC.
@@ -93,6 +98,10 @@ Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) opp
 - [ ] "…e poi" eseguito davvero: blocca, sospendi, iberna, arresta (non provati: avrebbero fermato il PC di lavoro)
 - [ ] Aggiornamento vero da una versione pubblicata alla successiva (serve il repo pubblico): mai durante una sessione, l'impostazione del coperchio rimessa prima
 - [ ] Promemoria stella dopo 5 avvii e 3 giorni
+
+### Pannello (0.0.6)
+
+- [ ] Su uno schermo basso (1366×768, o scala al 150% su un 1080p): con benvenuto e domanda sul coperchio il pannello scorre con la rotella e con il touchpad, e il piede si raggiunge
 
 ### Diagnostica, USB e rete (0.0.5)
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-22 — 0.0.6: il pannello si vede tutto, e scorre
+
+- **Correzione** (segnalata da Michele: "a me non scorre"): il pannello aveva un tetto fisso di 720 px e la pagina `overflow: hidden`. Con il benvenuto e la domanda sul coperchio aperti insieme il contenuto arrivava a 928 px: durate, "…e poi" e il piede restavano tagliati, e non c'era modo di vederli.
+- Ora il pannello è alto quanto il contenuto fino all'area di lavoro dello schermo, e oltre scorre (barra sottile, senza trascinare la pagina sotto).
+- Verificato su LPT-MIKI: 928 px, piede visibile; con contenuto più alto dello schermo la finestra si ferma a 1368 px su 1392 e la pagina scorre. Il sito scorreva già: controllato con la rotella nel browser.
+
 ## 2026-09-22 — 0.0.5: diagnostica, regole su USB e rete, meno memoria
 
 - **"Perché non dorme? Perché si è svegliato?"**: una scheda nelle Impostazioni e la voce "Perché non dorme?…" nel menu della tray.

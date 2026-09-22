@@ -248,8 +248,14 @@ svg {
 
 /* ---------------------------------------------------------------- pannello */
 
+/* Il pannello è alto quanto il contenuto, fino all'area di lavoro dello
+   schermo: oltre, scorre (prima era overflow: hidden, e il fondo spariva). */
 .popover-page {
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
   user-select: none;
   cursor: default;
 }

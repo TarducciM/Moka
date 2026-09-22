@@ -106,12 +106,38 @@ pub fn on_blur(app: &AppHandle) {
     }
 }
 
-/// Adatta l'altezza al contenuto (misurato dalla pagina) e riposiziona.
+/// Adatta l'altezza al contenuto (misurato dalla pagina) e riposiziona. Al
+/// massimo l'area di lavoro del monitor: oltre, la pagina scorre. Un tetto
+/// fisso (erano 720 px) tagliava il fondo del pannello senza modo di
+/// vederlo, sia su uno schermo basso sia con più schede aperte insieme.
 pub fn fit(app: &AppHandle, content_height: f64) {
     let Some(win) = window(app) else { return };
-    let height = content_height.clamp(120.0, 720.0).ceil();
+    let max = monitor(app)
+        .map(|m| {
+            let scale = m.scale_factor();
+            f64::from(m.work_area().size.height) / scale - 2.0 * MARGIN
+        })
+        .unwrap_or(720.0)
+        .max(120.0);
+    let height = content_height.clamp(120.0, max).floor();
     let _ = win.set_size(LogicalSize::new(WIDTH, height));
     place(app, &win);
+}
+
+/// Distanza dai bordi dell'area di lavoro, in pixel logici.
+const MARGIN: f64 = 12.0;
+
+/// Il monitor dell'icona (o il principale, se non si sa dov'è).
+fn monitor(app: &AppHandle) -> Option<tauri::Monitor> {
+    let anchor = app.state::<Shared>().lock().unwrap().anchor;
+    match anchor {
+        Some(a) => app
+            .monitor_from_point(f64::from(a.x), f64::from(a.y))
+            .ok()
+            .flatten(),
+        None => None,
+    }
+    .or_else(|| app.primary_monitor().ok().flatten())
 }
 
 /// Accanto all'icona, dentro l'area di lavoro del monitor (cioè fuori dalla
@@ -119,19 +145,11 @@ pub fn fit(app: &AppHandle, content_height: f64) {
 /// basso a destra del monitor principale.
 fn place(app: &AppHandle, win: &WebviewWindow) {
     let anchor = app.state::<Shared>().lock().unwrap().anchor;
-    let monitor = match anchor {
-        Some(a) => app
-            .monitor_from_point(f64::from(a.x), f64::from(a.y))
-            .ok()
-            .flatten(),
-        None => None,
-    }
-    .or_else(|| app.primary_monitor().ok().flatten());
-    let Some(monitor) = monitor else { return };
+    let Some(monitor) = monitor(app) else { return };
     let Ok(size) = win.outer_size() else { return };
 
     let area = monitor.work_area();
-    let margin = (12.0 * monitor.scale_factor()).round() as i32;
+    let margin = (MARGIN * monitor.scale_factor()).round() as i32;
     let (left, top) = (area.position.x, area.position.y);
     let (right, bottom) = (left + area.size.width as i32, top + area.size.height as i32);
     let (w, h) = (size.width as i32, size.height as i32);
