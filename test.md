@@ -75,6 +75,14 @@
 - [x] Pannello con benvenuto e domanda sul coperchio (prima avvio): alto 928 px, tutto visibile fino a "Spegni lo schermo ora" (con la 0.0.5 si fermava a 720 e il fondo era tagliato)
 - [x] Contenuto più alto dello schermo: la finestra si ferma all'area di lavoro (1368 px su 1392) e la pagina scorre
 
+2026-09-22, **LPT-MIKI**, Moka 0.0.7: prove con dati ostili e scritture impedite.
+
+- [x] `settings.json` e `state.json` ostili (lingua `42`, durate `"15"`/`-3`/`999999999`, `lidMode: "esplodi"`, regole con nomi da 84 caratteri, giorni `255`, modalità `teletrasporto`, una stringa al posto di una regola, sessione da 9.999.999 minuti con `logonId` testuale): Moka parte, tiene solo il valido (6 durate, 1 regola su 6), scarta la sessione impossibile
+- [x] Cartella dei dati non scrivibile: "Non è stato possibile salvare: Accesso negato. (os error 5)" tradotto; soglia batteria e regole **invariate** (prima restavano cambiate in memoria); la sessione in corso continua
+- [x] `settings.json` e `state.json` cancellati mentre Moka gira: al primo salvataggio li ricrea
+- [x] Tre `start_session` e quattro `toggle` simultanei: una sola sessione, poi spento; due `add_rule` identiche insieme: una salvata, una "Questa regola c'è già"
+- [x] 22 regole: si ferma a 20 con "Hai raggiunto il numero massimo di regole"; con 20 nomi lunghissimi l'elenco resta leggibile e non compare scorrimento orizzontale
+
 ## Da verificare
 
 Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) oppure un altro PC.

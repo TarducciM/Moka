@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-09-22 — 0.0.7: quello che si vede e quello che c'è su disco non divergono più
+
+Primo giro di prove con **dati ostili e scritture impedite**, mai fatto su Moka (è la stessa passata che nelle app MTSolutions ha trovato bug veri).
+
+- **Correzione**: se il salvataggio non riesce (cartella non scrivibile per un antivirus o un criterio, disco pieno) le impostazioni e le regole restavano cambiate **in memoria** pur non essendo su disco: l'app mostrava una cosa e al riavvio ne ricompariva un'altra. Ora si cambia una copia e la si mette solo a salvataggio riuscito; l'errore resta quello tradotto di prima.
+- Verificato su LPT-MIKI, con la cartella dei dati resa non scrivibile: messaggio tradotto, soglia batteria e regole **invariate**, e la sessione in corso continua (il PC resta sveglio anche se il disco non si può scrivere).
+- Verificato anche: file `settings.json` e `state.json` pieni di valori ostili (tipi sbagliati, durate impossibili, regole non valide, una sessione da 9.999.999 minuti) → Moka parte, scarta ciò che non può esistere e tiene il resto; file cancellati mentre gira → li ricrea; tre accensioni e quattro interruttori simultanei → una sola sessione, nessun doppione; due regole identiche insieme → una salvata e una rifiutata; 22 regole → si ferma a 20 con il messaggio giusto; 20 regole dai nomi lunghissimi → elenco leggibile, nessuno scorrimento orizzontale.
+- Il registro delle modifiche al coperchio (l'unico dato su disco che Moka riscrive **dentro Windows**) era già letto come ostile: GUID valido, valore originale fra 0 e 3, e solo "non fare nulla" come valore scritto.
+
 ## 2026-09-22 — 0.0.6: il pannello si vede tutto, e scorre
 
 - **Correzione** (segnalata da Michele: "a me non scorre"): il pannello aveva un tetto fisso di 720 px e la pagina `overflow: hidden`. Con il benvenuto e la domanda sul coperchio aperti insieme il contenuto arrivava a 928 px: durate, "…e poi" e il piede restavano tagliati, e non c'era modo di vederli.

@@ -701,54 +701,55 @@ pub fn update_settings(app: AppHandle, patch: SettingsPatch) -> Result<SettingsD
     }
     let result = control::with_core(&app, |core| {
         let lang = core.lang;
+        // Si cambia una copia e la si mette solo se il salvataggio riesce.
+        let mut next = core.settings.clone();
         if let Some(text) = &patch.durations_text {
-            core.settings.durations = parse_durations_text(text)
+            next.durations = parse_durations_text(text)
                 .map_err(|bad| tv(lang, "settings.durations_invalid", &[("value", &bad)]))?;
         }
         if let Some(language) = patch.language {
-            core.settings.language = language;
+            next.language = language;
         }
         if let Some(left) = patch.left_click {
-            core.settings.left_click = left;
+            next.left_click = left;
         }
         if let Some(mode) = patch.lid_mode {
             // Sceglierlo nelle Impostazioni vale come risposta alla domanda.
-            core.settings.lid_mode = mode;
-            core.settings.lid_asked = true;
+            next.lid_mode = mode;
+            next.lid_asked = true;
         }
         if let Some(desk) = patch.desk_mode {
-            core.settings.desk_mode = desk;
-            core.settings.lid_asked = true;
+            next.desk_mode = desk;
+            next.lid_asked = true;
         }
         if let Some(lock) = patch.lock_on_lid_open {
-            core.settings.lock_on_lid_open = lock;
+            next.lock_on_lid_open = lock;
         }
         if let Some(m) = patch
             .backpack_minutes
             .filter(|m| BACKPACK_CHOICES.contains(m))
         {
-            core.settings.backpack_minutes = m;
+            next.backpack_minutes = m;
         }
         if let Some(b) = patch
             .battery_threshold
             .filter(|b| BATTERY_CHOICES.contains(b))
         {
-            core.settings.battery_threshold = b;
+            next.battery_threshold = b;
         }
         if let Some(w) = patch.warn_before_end {
-            core.settings.warn_before_end = w;
+            next.warn_before_end = w;
         }
         if let Some(s) = &patch.shortcut_toggle {
-            core.settings.shortcut_toggle = normalize_shortcut(s);
+            next.shortcut_toggle = normalize_shortcut(s);
         }
         if let Some(s) = &patch.shortcut_screen_off {
-            core.settings.shortcut_screen_off = normalize_shortcut(s);
+            next.shortcut_screen_off = normalize_shortcut(s);
         }
         if let Some(p) = patch.presence {
-            core.settings.presence = p;
+            next.presence = p;
         }
-        core.settings = std::mem::take(&mut core.settings).dedup_shortcuts();
-        core.save_settings()
+        core.set_settings(next.dedup_shortcuts())
             .map_err(|e| tv(lang, "settings.save_error", &[("error", &e.to_string())]))
     });
     if result.is_ok() && (patch.shortcut_toggle.is_some() || patch.shortcut_screen_off.is_some()) {

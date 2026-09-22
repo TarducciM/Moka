@@ -426,6 +426,21 @@ impl Core {
         }
     }
 
+    /// Cambia le impostazioni e le salva. Se il salvataggio non riesce
+    /// (cartella non scrivibile, disco pieno) restano quelle di prima:
+    /// altrimenti l'app mostrerebbe una cosa e il disco ne conterrebbe
+    /// un'altra, fino al riavvio.
+    pub fn set_settings(&mut self, next: Settings) -> std::io::Result<()> {
+        let before = std::mem::replace(&mut self.settings, next);
+        match self.save_settings() {
+            Ok(()) => Ok(()),
+            Err(err) => {
+                self.settings = before;
+                Err(err)
+            }
+        }
+    }
+
     pub fn save_settings(&mut self) -> std::io::Result<()> {
         self.settings.save(&self.paths.settings)?;
         self.lang = Lang::resolve(self.settings.language);
@@ -792,14 +807,15 @@ impl Core {
             return Err(RuleError::Duplicate);
         }
         let id = rules::next_id(&self.settings.rules);
-        self.settings.rules.push(Rule {
+        let mut next = self.settings.clone();
+        next.rules.push(Rule {
             id,
             enabled: true,
             mode,
             then,
             kind,
         });
-        self.save_settings()
+        self.set_settings(next)
             .map_err(|e| RuleError::Save(e.to_string()))
     }
 
@@ -810,12 +826,10 @@ impl Core {
         mode: Option<Mode>,
         then: Option<ThenAct>,
     ) -> std::io::Result<()> {
-        if let Some(r) = self.settings.rules.iter_mut().find(|r| r.id == id) {
+        let mut next = self.settings.clone();
+        if let Some(r) = next.rules.iter_mut().find(|r| r.id == id) {
             if let Some(e) = enabled {
                 r.enabled = e;
-                if !e {
-                    self.rules.active.retain(|a| *a != id);
-                }
             }
             if let Some(m) = mode {
                 r.mode = m;
@@ -824,13 +838,21 @@ impl Core {
                 r.then = t;
             }
         }
-        self.save_settings()
+        self.set_settings(next)?;
+        // Una regola disattivata smette di tenere sveglio il PC subito, e
+        // senza far partire il suo "…e poi" (non è finita da sé).
+        if enabled == Some(false) {
+            self.rules.active.retain(|a| *a != id);
+        }
+        Ok(())
     }
 
     pub fn delete_rule(&mut self, id: u32) -> std::io::Result<()> {
-        self.settings.rules.retain(|r| r.id != id);
+        let mut next = self.settings.clone();
+        next.rules.retain(|r| r.id != id);
+        self.set_settings(next)?;
         self.rules.active.retain(|a| *a != id);
-        self.save_settings()
+        Ok(())
     }
 
     /// Presenza: F15 solo se è attiva e Moka sta tenendo sveglio il PC.

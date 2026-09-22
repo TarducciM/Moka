@@ -1,6 +1,6 @@
 # Moka — piano di progetto
 
-> **Stato: sviluppo, 0.0.6.** Tutto il codice fino alla 0.5 (diagnostica, regole su USB e rete, memoria del pannello) è scritto e provato su LPT-MIKI; la pubblicazione della prima release aspetta lo spike e i passi di Michele in [`RELEASE.md`](RELEASE.md). In dettaglio: Il nucleo della 0.1 e tutta la parte della 0.2 che non dipende dallo spike sono scritti e verificati su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md). Lo spike decide **quali richieste** tenere a coperchio chiuso, non come si cambia e si rimette l'impostazione di Windows, che è già fatto e provato.
+> **Stato: sviluppo, 0.0.7.** Tutto il codice fino alla 0.5 (diagnostica, regole su USB e rete, memoria del pannello) è scritto e provato su LPT-MIKI; la pubblicazione della prima release aspetta lo spike e i passi di Michele in [`RELEASE.md`](RELEASE.md). In dettaglio: Il nucleo della 0.1 e tutta la parte della 0.2 che non dipende dallo spike sono scritti e verificati su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md). Lo spike decide **quali richieste** tenere a coperchio chiuso, non come si cambia e si rimette l'impostazione di Windows, che è già fatto e provato.
 >
 > Questo file è il punto di ripresa: chi riprende il lavoro, da qualunque PC, parte da qui. Va aggiornato a ogni passaggio significativo, insieme a `CHANGELOG.md`.
 >
@@ -681,6 +681,8 @@ Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
 58. Con `A && B; C` in Bash, se A fallisce B non parte e C sì: un `moka --quit` saltato così sembra un `--quit` che non funziona.
 59. Uno script Python dentro un heredoc Bash trasforma `\\0` in un carattere NUL vero dentro il sorgente Rust. Per le stringhe con barre rovesciate: `r"..."` in Rust e il file scritto direttamente, non passato da una shell.
 60. Un'altezza massima fissa per una finestra che si adatta al contenuto (erano 720 px) più `overflow: hidden` sulla pagina è un fondo che sparisce: con due schede aperte insieme il pannello arrivava a 928 px. Il tetto giusto è l'area di lavoro del monitor, e oltre la pagina deve scorrere. Si vedeva già in una schermata della 0.0.4 (il pannello finiva a "Cosa tenere acceso"), ma nessuno ha guardato il fondo: guardare **tutta** la schermata, non solo la parte nuova.
+61. Cambiare i dati in memoria e **poi** salvarli: se il salvataggio non riesce (cartella non scrivibile, disco pieno) l'app mostra una cosa e il disco ne contiene un'altra, e al riavvio l'utente ritrova qualcosa che aveva "cambiato". Si cambia una copia e la si mette solo a salvataggio riuscito (`Core::set_settings`). La sessione invece deve continuare anche se non si può scrivere: quella sta in memoria per scelta.
+62. Un file reso di sola lettura non impedisce a un salvataggio atomico di sostituirlo: su Windows il permesso di cancellazione può arrivare dalla **cartella**. Per provare davvero un salvataggio che fallisce va negata la scrittura sulla cartella, non sul file.
 
 ### Trovate scrivendo la 0.0.4 (2026-09-22)
 

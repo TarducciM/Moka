@@ -1,6 +1,6 @@
 [package]
 name = "moka"
-version = "0.0.6"
+version = "0.0.7"
 description = "Keep your Windows PC awake from the tray. Local, no telemetry."
 authors = ["Michele Tarducci"]
 license = "MIT"
