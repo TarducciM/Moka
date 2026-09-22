@@ -1,0 +1,233 @@
+//! Moka: tieni sveglio il PC dalla tray.
+
+pub mod capabilities;
+pub mod cli;
+pub mod i18n;
+pub mod lid;
+pub mod power;
+pub mod session;
+pub mod settings;
+pub mod sys;
+
+mod commands;
+mod control;
+mod popover;
+mod state;
+mod tray;
+
+use std::sync::{Condvar, Mutex};
+use std::time::Duration;
+
+use tauri::menu::MenuEvent;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent};
+
+use crate::control::TRAY_ID;
+use crate::session::{Mode, Spec};
+use crate::settings::LeftClick;
+use crate::state::{AppState, Core, Paths, UiCache};
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    let startup = cli::parse(std::env::args().skip(1));
+
+    tauri::Builder::default()
+        // Per primo: una seconda istanza deve passare gli argomenti a questa e
+        // chiudersi prima di fare qualunque altra cosa.
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            let parsed = cli::parse(args.iter().skip(1));
+            control::apply_cli(app, parsed.action, true);
+        }))
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec!["--autostart"]),
+        ))
+        .plugin(tauri_plugin_opener::init())
+        .manage(Mutex::new(popover::PopoverState::default()))
+        .invoke_handler(tauri::generate_handler![
+            commands::get_state,
+            commands::start_session,
+            commands::stop_session,
+            commands::toggle_session,
+            commands::set_mode,
+            commands::screen_off,
+            commands::dismiss_welcome,
+            commands::hide_popover,
+            commands::fit_popover,
+            commands::open_settings,
+            commands::settings_ready,
+            commands::close_settings,
+            commands::get_settings,
+            commands::update_settings,
+        ])
+        .setup(move |app| {
+            let handle = app.handle().clone();
+
+            // Chiamato dall'installer: applica la scelta ed esce, senza finestre.
+            if let cli::Action::Autostart(enable) = startup.action {
+                control::set_autostart(&handle, enable);
+                handle.exit(0);
+                return Ok(());
+            }
+
+            let dir = app.path().app_data_dir()?;
+            let paths = Paths {
+                settings: dir.join("settings.json"),
+                state: dir.join("state.json"),
+            };
+            let version = app.package_info().version.to_string();
+            let core = Core::load(paths, version, sys::now());
+            let show_welcome = !core.memory.welcome_done && !startup.from_autostart;
+            app.manage(AppState {
+                core: Mutex::new(core),
+                wake: Condvar::new(),
+                ui: Mutex::new(UiCache::default()),
+            });
+
+            // L'icona nasce vuota: la disegna `refresh`, come ogni volta dopo.
+            TrayIconBuilder::with_id(TRAY_ID)
+                .icon(tray::icon(
+                    tray::IconState::Off,
+                    sys::taskbar_is_light(),
+                    16,
+                ))
+                .tooltip("Moka")
+                .show_menu_on_left_click(false)
+                .on_menu_event(on_menu_event)
+                .on_tray_icon_event(|icon, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        rect,
+                        ..
+                    } = event
+                    {
+                        let app = icon.app_handle();
+                        let left = app
+                            .state::<AppState>()
+                            .core
+                            .lock()
+                            .unwrap()
+                            .settings
+                            .left_click;
+                        match left {
+                            LeftClick::Popover => {
+                                popover::toggle(app, Some(popover::anchor_from_rect(&rect)))
+                            }
+                            LeftClick::Toggle => control::toggle(app),
+                        }
+                    }
+                })
+                .build(app)?;
+
+            control::request_refresh(&handle, true);
+            spawn_ticker(handle.clone());
+            {
+                let h = handle.clone();
+                sys::watch_taskbar_theme(move || control::request_refresh(&h, false));
+            }
+
+            control::apply_cli(&handle, startup.action.clone(), false);
+
+            if show_welcome {
+                // L'icona appena creata ha bisogno di un attimo prima che
+                // Windows ne conosca la posizione.
+                let h = handle.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(Duration::from_millis(900));
+                    let h2 = h.clone();
+                    let _ = h.run_on_main_thread(move || control::show_popover_at_tray(&h2));
+                });
+            }
+            Ok(())
+        })
+        .on_window_event(|window, event| match (window.label(), event) {
+            (popover::LABEL, WindowEvent::Focused(false)) => popover::on_blur(window.app_handle()),
+            (popover::LABEL, WindowEvent::CloseRequested { api, .. }) => {
+                // Il pannello non si chiude mai, si nasconde (trappola 2).
+                api.prevent_close();
+                popover::hide(window.app_handle());
+            }
+            _ => {}
+        })
+        .build(tauri::generate_context!())
+        .expect("avvio di Moka")
+        .run(|app, event| {
+            if let RunEvent::ExitRequested { api, code, .. } = event {
+                // Chiudere le Impostazioni non deve chiudere Moka: esce solo
+                // chi lo chiede esplicitamente (app.exit, con un codice).
+                if code.is_none() {
+                    api.prevent_exit();
+                }
+            }
+            let _ = app;
+        });
+}
+
+fn on_menu_event(app: &AppHandle, event: MenuEvent) {
+    let id = event.id.as_ref();
+    match id {
+        "toggle" => control::toggle(app),
+        "for:never" => control::start(app, None, Some(Spec::Never)),
+        "until" => {
+            control::show_popover_at_tray(app);
+            let _ = app.emit_to(popover::LABEL, "moka://focus-until", ());
+        }
+        "screen" => {
+            let st = app.state::<AppState>();
+            let current = {
+                let core = st.core.lock().unwrap();
+                core.session
+                    .map(|s| s.mode)
+                    .unwrap_or(core.memory.last_mode)
+            };
+            let next = if current == Mode::Display {
+                Mode::System
+            } else {
+                Mode::Display
+            };
+            control::set_mode(app, next);
+        }
+        "screen_off" => control::screen_off(app),
+        "open" => control::show_popover_at_tray(app),
+        "settings" => {
+            let app = app.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(err) = commands::show_settings(app) {
+                    eprintln!("moka: impostazioni non aperte: {err}");
+                }
+            });
+        }
+        "quit" => control::quit(app),
+        other => {
+            if let Some(minutes) = other.strip_prefix("for:").and_then(|m| m.parse().ok()) {
+                control::start(app, None, Some(Spec::Minutes { minutes }));
+            }
+        }
+    }
+}
+
+/// Il timer: chiude le sessioni scadute e tiene aggiornato il tempo residuo
+/// nel tooltip. Dorme fino al prossimo evento utile; chi cambia la sessione
+/// lo sveglia (vedi `generation` in `state.rs`).
+fn spawn_ticker(app: AppHandle) {
+    std::thread::Builder::new()
+        .name("moka-ticker".into())
+        .spawn(move || {
+            let st = app.state::<AppState>();
+            let mut core = st.core.lock().unwrap();
+            loop {
+                let now = sys::now();
+                let expired = core.expire_if_due(now);
+                let wait = core.next_wait(now);
+                let seen = core.generation;
+                drop(core);
+                control::request_refresh(&app, expired);
+                core = st.core.lock().unwrap();
+                if core.generation == seen {
+                    core = st.wake.wait_timeout(core, wait).unwrap().0;
+                }
+            }
+        })
+        .expect("thread del timer");
+}

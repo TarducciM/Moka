@@ -1,0 +1,43 @@
+name: build
+
+# Build degli installer a richiesta (Actions → build → Run workflow), per
+# provare Moka su un altro PC prima della prima release. Niente firma e niente
+# aggiornamenti automatici: arrivano con la 0.3, insieme a release.yml.
+on:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Eseguibile portable
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          mkdir -p dist
+          cp src-tauri/target/release/moka.exe "dist/Moka_${version}_x64-portable.exe"
+          cp src-tauri/target/release/bundle/nsis/*.exe dist/
+          cp src-tauri/target/release/bundle/msi/*.msi dist/
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: moka-windows
+          path: dist/
+          if-no-files-found: error

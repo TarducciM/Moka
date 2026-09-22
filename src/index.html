@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Moka</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="i18n.js"></script>
+    <script src="popover.js" defer></script>
+  </head>
+  <body class="popover-page">
+    <main id="panel" class="panel">
+      <header class="head">
+        <span class="pot" aria-hidden="true">
+          <svg viewBox="2 0.5 29 29">
+            <path class="pot-body" d="M6.5 10 L22 10 L20 17 L23 28 L9 28 L12 17 L10.5 13.5 Z" />
+            <rect class="pot-knob" x="14" y="7" width="4" height="3" rx="0.6" />
+            <path class="pot-handle" d="M21.6 11.5 H26 L25 16 H20.3" />
+            <path class="pot-steam" d="M12.5 6 q-1.4 -1.1 0 -2.2 t0 -2.2 M19.5 6 q-1.4 -1.1 0 -2.2 t0 -2.2" />
+          </svg>
+        </span>
+        <div class="head-text">
+          <h1 class="title">Moka</h1>
+          <p class="status" id="status" aria-live="polite"></p>
+        </div>
+        <button type="button" class="switch" id="power" role="switch" aria-checked="false">
+          <span class="switch-knob"></span>
+        </button>
+      </header>
+
+      <section class="welcome" id="welcome" hidden>
+        <h2 class="welcome-title" data-i18n="popover.welcome_title"></h2>
+        <p class="welcome-body" data-i18n="popover.welcome_body"></p>
+        <button type="button" class="btn btn-small" id="welcome-ok" data-i18n="popover.welcome_ok"></button>
+      </section>
+
+      <section class="group" aria-labelledby="keep-on-label">
+        <h2 class="label" id="keep-on-label" data-i18n="popover.keep_on"></h2>
+        <div class="segmented" role="radiogroup" aria-labelledby="keep-on-label">
+          <button type="button" role="radio" data-mode="system" aria-checked="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3.5v7.5" />
+              <path d="M7 6.6a7.5 7.5 0 1 0 10 0" />
+            </svg>
+            <span data-i18n="mode.system"></span>
+          </button>
+          <button type="button" role="radio" data-mode="display" aria-checked="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="12.5" rx="2" />
+              <path d="M8.5 20.5h7M12 16.5v4" />
+            </svg>
+            <span data-i18n="mode.display"></span>
+          </button>
+        </div>
+        <p class="hint" id="mode-hint"></p>
+      </section>
+
+      <section class="group" aria-labelledby="how-long-label">
+        <h2 class="label" id="how-long-label" data-i18n="popover.how_long"></h2>
+        <div class="chips" id="durations"></div>
+        <form class="until" id="until-form">
+          <label for="until" data-i18n="popover.until"></label>
+          <input type="time" id="until" required />
+          <button type="submit" class="btn" data-i18n="popover.until_start"></button>
+        </form>
+      </section>
+
+      <footer class="foot">
+        <button type="button" class="row-btn" id="screen-off">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M19.5 14.6A7.8 7.8 0 0 1 9.4 4.5a7.8 7.8 0 1 0 10.1 10.1z" />
+          </svg>
+          <span class="row-btn-text">
+            <span data-i18n="popover.screen_off"></span>
+            <small data-i18n="popover.screen_off_hint"></small>
+          </span>
+        </button>
+        <button
+          type="button"
+          class="icon-btn"
+          id="open-settings"
+          data-i18n-title="popover.settings"
+          data-i18n-aria="popover.settings"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7.5h9M17 7.5h3M4 16.5h3M11 16.5h9" />
+            <circle cx="15" cy="7.5" r="2.2" />
+            <circle cx="9" cy="16.5" r="2.2" />
+          </svg>
+        </button>
+      </footer>
+    </main>
+  </body>
+</html>

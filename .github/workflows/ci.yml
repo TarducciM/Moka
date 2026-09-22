@@ -1,0 +1,66 @@
+name: ci
+
+# `push` solo su main: senza filtro, un ramo con una PR aperta pagherebbe due
+# giri per ogni push (uno per il push, uno per la pull_request, sugli stessi
+# commit). I rami restano coperti dalla PR.
+#
+# `concurrency`: due push ravvicinati sullo stesso ramo non pagano due giri,
+# vale l'ultimo. Su main invece ogni commit ha il suo esito, o non si sa più
+# quale versione era sana. È la regola del mega-repo MTSolutions, ed è la metà
+# che manca al ci.yml di ClipVault.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  rust:
+    # Windows perché Moka usa le API di Windows, e i test ne chiamano alcune
+    # davvero (una richiesta di alimentazione creata e rilasciata).
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Formattazione
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+
+      - name: Clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
+
+      - name: Test
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+
+  web:
+    # Pagine, traduzioni e versioni: niente di specifico di Windows, quindi il
+    # runner Linux, che costa la metà.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Sintassi JS e traduzioni
+        run: npm run check
+
+      - name: Versioni allineate
+        run: npm run version:check
+
+      - name: Audit dipendenze (solo quelle che finiscono nell'app)
+        run: npm audit --omit=dev --audit-level=high

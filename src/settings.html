@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Moka</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="i18n.js"></script>
+    <script src="settings.js" defer></script>
+  </head>
+  <body class="settings-page">
+    <main class="settings">
+      <header class="settings-head">
+        <img src="app-icon.svg" alt="" />
+        <h1 data-i18n="settings.title"></h1>
+      </header>
+
+      <section class="card" aria-labelledby="general-title">
+        <h2 id="general-title" data-i18n="settings.section_general"></h2>
+        <div class="field">
+          <label for="language" data-i18n="settings.language"></label>
+          <select id="language">
+            <option value="auto" data-i18n="settings.language_auto"></option>
+            <option value="it">Italiano</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-text" for="autostart">
+            <span data-i18n="settings.autostart"></span>
+            <small data-i18n="settings.autostart_hint"></small>
+          </label>
+          <input type="checkbox" id="autostart" />
+        </div>
+        <div class="field-block" role="radiogroup" aria-labelledby="left-click-label">
+          <span id="left-click-label" data-i18n="settings.left_click"></span>
+          <label class="radio">
+            <input type="radio" name="left-click" value="popover" />
+            <span data-i18n="settings.left_click_popover"></span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="left-click" value="toggle" />
+            <span data-i18n="settings.left_click_toggle"></span>
+          </label>
+          <small data-i18n="settings.left_click_hint"></small>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="durations-title">
+        <h2 id="durations-title" data-i18n="settings.section_durations"></h2>
+        <label for="durations" data-i18n="settings.durations_label"></label>
+        <input
+          type="text"
+          id="durations"
+          class="text-input"
+          spellcheck="false"
+          autocomplete="off"
+          aria-describedby="durations-hint durations-error"
+        />
+        <p class="hint" id="durations-hint" data-i18n="settings.durations_hint"></p>
+        <p class="error" id="durations-error" role="alert" hidden></p>
+      </section>
+
+      <section class="card" aria-labelledby="check-title">
+        <h2 id="check-title" data-i18n="settings.section_check"></h2>
+        <p data-i18n="settings.check_body"></p>
+        <code class="cmd">powercfg /requests</code>
+      </section>
+
+      <footer class="about" aria-labelledby="about-title">
+        <h2 class="about-title" id="about-title" data-i18n="settings.section_about"></h2>
+        <p id="version"></p>
+        <p data-i18n="settings.privacy"></p>
+        <p>
+          <span data-i18n="settings.license"></span>
+          <span data-i18n="settings.credits"></span>
+          <a href="https://mtsolutions.studio">MTSolutions</a>
+        </p>
+      </footer>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </main>
+  </body>
+</html>

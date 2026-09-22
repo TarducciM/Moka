@@ -1,0 +1,19 @@
+{
+  "name": "moka",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Keep your Windows PC awake from the tray. Local, no telemetry.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "icons": "node scripts/icons.mjs",
+    "check": "node scripts/check-js.mjs && node --test \"tests/*.test.mjs\"",
+    "version:check": "node scripts/check-versions.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
