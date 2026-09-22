@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-22 — sito: header e footer allineati alla struttura reale di ClipVault/MD-Viewer
+
+Solo `site/`, nessun cambio all'app. Il giro precedente aveva rifatto lo stile (font, colori, componenti) ma non tutta la struttura: header e footer restavano nel vecchio impianto (`.site-header`/`.site-footer`, niente `.wrap`/`.footer-row`), non nel sistema a due blocchi flex di ClipVault/MD-Viewer.
+
+- **Footer di `index.html` ricostruito su `.footer-row`**: prima erano due `<p>` impilate (link, poi copyright), ora è la stessa riga `display:flex; justify-content:space-between` di ClipVault/MD-Viewer — testo di licenza/copyright a sinistra, gruppo `.footer-links` a destra (Sorgente, Segnala un problema, Licenza, Privacy, Termini, Cookie Policy), stesso ordine e stessa etichetta "Sorgente/Source" al posto di "GitHub". Misurato: stesso padding (`32px 0 44px`), stessa altezza della riga, identici a pixel a quelli di ClipVault e MD-Viewer.
+- **Header di `index.html` riorganizzato in due gruppi flex** (marchio+attribuzione a sinistra, pillola versione+GitHub+selettore lingua a destra) invece di quattro elementi allineati con un `margin-right:auto` di ripiego — stesso `justify-content:space-between` a due blocchi del riferimento, con l'attribuzione "di/by MTSolutions" e il selettore lingua (che ClipVault/MD-Viewer non hanno, sono mono-lingua) integrati nella stessa struttura invece che accostati.
+- **Pagine legali**: header portato sullo stesso `header.site` (marchio con `.mark`+`.word`, non più testo diretto sull'`<a>`), footer ridotto a un'unica riga compatta ("Moka — Licenza MIT. © 2026 San Marino Games S.r.l. · MTSolutions. Home · [le altre due pagine legali]"), stesso schema minimale che usano `privacy.html`/`terms.html`/`cookie-policy.html` di ClipVault e MD-Viewer (niente split a due colonne lì, solo su `index.html`).
+- Contenitore delle sezioni rinominato concettualmente a wrapper condiviso (`container`, riusato anche per header/footer invece di introdurne uno nuovo) e padding-top di `.hero` riportato a `56px` come nel riferimento (era 40px).
+- Verificato con screenshot automatizzati (Playwright headless, tre siti serviti in locale fianco a fianco) confrontando header/footer pixel per pixel: stesso `padding`, stesso `display:flex`/`justify-content:space-between`, stessa altezza della riga footer. Provate entrambe le lingue (IT/EN) su tutte e quattro le pagine e nessun errore in console a parte il 404 atteso di `releases/latest` (nessuna release pubblicata ancora).
+
 ## 2026-09-22 — sito: nuovo design, stesso linguaggio visivo di ClipVault/MD-Viewer
 
 Solo `site/`, nessun cambio all'app (versione invariata, 0.0.4).
