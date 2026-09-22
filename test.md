@@ -31,6 +31,20 @@
 - [x] Uscita (`--quit`) con una sessione e la modifica attive: tutto com'era, nessuna traccia
 - [x] Contrasti delle parti nuove (domanda, riga, sezioni Coperchio e Batteria), chiaro e scuro: minimo 5,45:1 e 5,84:1
 
+2026-09-22, **LPT-MIKI**, Moka 0.0.3.
+
+- [x] "…e poi: spegni lo schermo" su una sessione di 1 minuto: alla scadenza compare la finestrella "Schermo spento tra 58 s", **senza** rubare il focus; durante l'attesa il PC resta sveglio (`SYSTEM` attiva)
+- [x] "Annulla": la finestrella si chiude, la richiesta si rilascia, il "…e poi" torna "niente"
+- [x] "+30 min" dal conto alla rovescia: riaccende per 30 minuti mantenendo il "…e poi"
+- [x] Avviso dei 5 minuti su una sessione di 11: compare puntuale dopo 6 minuti, in basso a destra (e "+30 min" lì funziona: la sessione è passata a 35 minuti)
+- [x] Tasto rapido Ctrl+Maiusc+F9 scelto nelle Impostazioni (etichette "Maiusc" in italiano), registrato senza errori; premuto (simulato con `SendKeys`) spegne, premuto di nuovo riaccende con l'ultima scelta
+- [x] Controllo aggiornamenti con il repo ancora privato: "Controllo non riuscito", nessun pulsante di installazione, niente di rotto (il `latest.json` risponde 404, come atteso)
+- [x] Sito (`site/`, servito in locale): italiano e inglese, pagine legali e link interni, nessuno scorrimento orizzontale a 375 px, contrasti sopra soglia in chiaro e scuro (minimo 5,84:1)
+- [x] Build di release firmata in locale, con la chiave dell'updater al posto del secret: NSIS 2,0 MB e MSI 2,8 MB, ognuno con la sua `.sig`
+- [x] Installer NSIS silenzioso (`/S`): installa in `%LOCALAPPDATA%\Moka`, voce in "App e funzionalità" con la versione giusta
+- [x] **Reinstallazione sopra una Moka aperta con la modifica del coperchio attiva**: l'installer la chiude in modo pulito, l'impostazione torna "sospendi", niente `RunOnce`, niente registro, nessun processo rimasto
+- [x] **Disinstallazione con la modifica attiva**: stessa cosa, e in più via la cartella, la voce di disinstallazione, l'avvio automatico e i collegamenti
+
 ## Da verificare
 
 Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) oppure un altro PC.
@@ -49,6 +63,11 @@ Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) opp
 - [ ] Riavvio del PC con una sessione attiva: al nuovo accesso la sessione **non** riparte
 - [ ] Scala 100%, 125%, 150%: icona nitida, pannello posizionato bene
 - [ ] Installer NSIS e MSI (workflow `build`): installazione, avvio, disinstallazione
+- [ ] Installer NSIS interattivo: la pagina "Attività aggiuntive" in italiano, la casella dell'avvio automatico funziona
+- [ ] MSI: disinstallazione con la modifica del coperchio attiva (serve l'amministratore)
+- [ ] "…e poi" eseguito davvero: blocca, sospendi, iberna, arresta (non provati: avrebbero fermato il PC di lavoro)
+- [ ] Aggiornamento vero da una versione pubblicata alla successiva (serve il repo pubblico): mai durante una sessione, l'impostazione del coperchio rimessa prima
+- [ ] Promemoria stella dopo 5 avvii e 3 giorni
 
 ### Coperchio e batteria (0.0.2) — servono le mani sul portatile
 

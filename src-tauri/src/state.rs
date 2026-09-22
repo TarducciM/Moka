@@ -16,16 +16,53 @@ use chrono::{Local, Timelike};
 use serde::Serialize;
 
 use crate::capabilities::{self, Capabilities};
-use crate::i18n::{self, duration_label, Lang};
+use crate::i18n::{self, duration_label, remaining_label, t, then_label, tv, Lang};
 use crate::lid::{self, LidAction};
 use crate::lidoverride::{Overrides, WindowsBackend};
-use crate::lidplan::{self, Effect, Force, Inputs, Tracker, World};
+use crate::lidplan::{self, Effect, Force, Inputs, LidAct, Tracker, World};
 use crate::power::{Needs, PowerRequest};
-use crate::session::{Mode, Now, Session, Spec};
+use crate::session::{Mode, Now, Session, Spec, ThenAct};
 use crate::settings::{LidMode, Memory, SavedSession, Settings};
 use crate::sys;
 use crate::sysevents::SysEvent;
 use crate::tray::{IconState, TrayMenu};
+
+/// Il conto alla rovescia di "…e poi".
+pub const COUNTDOWN_MS: u64 = 60_000;
+/// Una sessione scaduta da più di così ha finito mentre il PC dormiva: niente
+/// azione, per non spegnere il portatile appena lo si riapre.
+const LATE_MS: u64 = 30_000;
+/// L'avviso compare quando mancano 5 minuti, e solo per sessioni più lunghe
+/// di 10 (su una sessione da 15 minuti è utile, su una da 5 sarebbe rumore).
+const WARN_BEFORE_MS: u64 = 5 * 60_000;
+const WARN_MIN_TOTAL_MS: u64 = 10 * 60_000;
+/// Quanto resta visibile l'avviso se nessuno lo tocca.
+const WARN_SHOWN_MS: u64 = 60_000;
+const DAY_MS: i64 = 86_400_000;
+
+/// "…e poi" in attesa di partire.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Countdown {
+    pub act: ThenAct,
+    pub at_tick: u64,
+    /// A coperchio chiuso nessuno vede il conto alla rovescia: si aspettano
+    /// solo i 10 s di garanzia, senza finestra.
+    pub silent: bool,
+    /// La modalità della sessione finita, per "+30 min".
+    pub mode: Mode,
+}
+
+/// L'azione di sistema per un "…e poi".
+pub fn then_effect(act: ThenAct) -> Option<Effect> {
+    match act {
+        ThenAct::None => None,
+        ThenAct::ScreenOff => Some(Effect::ScreenOff),
+        ThenAct::Lock => Some(Effect::Lock),
+        ThenAct::Sleep => Some(Effect::Perform(LidAct::Sleep)),
+        ThenAct::Hibernate => Some(Effect::Perform(LidAct::Hibernate)),
+        ThenAct::Shutdown => Some(Effect::Perform(LidAct::Shutdown)),
+    }
+}
 
 pub struct Paths {
     pub settings: PathBuf,
@@ -110,6 +147,14 @@ pub struct Core {
     /// Azioni sul sistema da eseguire fuori dal lock.
     pub effects: Vec<Effect>,
     pub notices: Vec<Notice>,
+    pub countdown: Option<Countdown>,
+    /// L'avviso "si spegne tra 5 minuti" resta visibile fino a questo tick.
+    pub warning_until: Option<u64>,
+    warned: bool,
+    /// Una versione nuova pronta da installare (la trova `updates`).
+    pub update_version: Option<String>,
+    /// Un tasto rapido che non si è potuto registrare (preso da un'altra app).
+    pub shortcut_error: Option<String>,
     /// Cresce a ogni modifica: il thread del timer lo usa per non perdersi una
     /// notifica arrivata mentre non stava aspettando.
     pub generation: u64,
@@ -133,8 +178,17 @@ impl Core {
             logon_id,
             effects: Vec::new(),
             notices: Vec::new(),
+            countdown: None,
+            warning_until: None,
+            warned: false,
+            update_version: None,
+            shortcut_error: None,
             generation: 0,
         };
+        core.memory.launches = core.memory.launches.saturating_add(1);
+        if core.memory.first_seen_wall_ms <= 0 {
+            core.memory.first_seen_wall_ms = now.wall_ms;
+        }
         // Riattiva la sessione ripresa, oppure toglie dal file quella scartata.
         core.apply(now);
         core
@@ -146,7 +200,23 @@ impl Core {
         self.generation += 1;
         self.reconcile_lid(now);
         let (needs, reason) = match &self.session {
-            None => (Needs::NONE, String::new()),
+            // Durante il conto alla rovescia il PC resta sveglio: "sveglio
+            // finché finisce, poi spegni" non deve addormentarsi un minuto prima.
+            None => match self.countdown {
+                Some(c) => (
+                    Needs {
+                        system: true,
+                        display: false,
+                        execution: false,
+                    },
+                    tv(
+                        self.lang,
+                        "reason.then",
+                        &[("action", &then_label(self.lang, c.act))],
+                    ),
+                ),
+                None => (Needs::NONE, String::new()),
+            },
             Some(s) => (
                 Needs {
                     system: true,
@@ -219,7 +289,11 @@ impl Core {
             lock_on_open: self.settings.lock_on_lid_open,
         };
         if let Some(effect) = self.lid.tracker.update(&world, now.tick_ms) {
-            self.effects.push(effect);
+            // Un "…e poi" in corso vince su ciò che Windows avrebbe fatto.
+            let then_wins = self.countdown.is_some() && matches!(effect, Effect::Perform(_));
+            if !then_wins {
+                self.effects.push(effect);
+            }
         }
     }
 
@@ -290,31 +364,118 @@ impl Core {
     }
 
     /// Accende. `None` = l'ultima scelta fatta.
-    pub fn start(&mut self, mode: Option<Mode>, spec: Option<Spec>, lid: Option<bool>, now: Now) {
+    pub fn start(
+        &mut self,
+        mode: Option<Mode>,
+        spec: Option<Spec>,
+        lid: Option<bool>,
+        then: Option<ThenAct>,
+        now: Now,
+    ) {
         let mode = mode.unwrap_or(self.memory.last_mode);
         let spec = spec.unwrap_or(self.memory.last_spec);
         let lid = lid.unwrap_or(self.memory.last_lid);
+        let then = then.unwrap_or(self.memory.next_then);
         self.memory.last_mode = mode;
         self.memory.last_spec = spec;
         self.memory.last_lid = lid;
+        self.memory.next_then = then;
         let mut session = Session::start(mode, spec, now, &Local);
         session.lid = lid;
+        session.then = then;
         self.session = Some(session);
+        // Riaccendere annulla un "…e poi" in attesa e l'avviso.
+        self.countdown = None;
+        self.warning_until = None;
+        self.warned = false;
         self.lid.paused = false;
         self.arm_battery();
         self.apply(now);
     }
 
+    /// Spegne a mano: nessun "…e poi" (l'ha spenta l'utente, sa cosa vuole).
     pub fn stop(&mut self, now: Now) {
         self.session = None;
+        self.countdown = None;
+        self.warning_until = None;
+        self.memory.next_then = ThenAct::None;
         self.apply(now);
+    }
+
+    /// "…e poi" per la sessione in corso, o per la prossima.
+    pub fn set_then(&mut self, act: ThenAct, now: Now) {
+        self.memory.next_then = act;
+        if let Some(s) = &mut self.session {
+            s.then = act;
+        }
+        self.apply(now);
+    }
+
+    /// "+30 min", dall'avviso o dal conto alla rovescia (che riaccende).
+    pub fn extend(&mut self, minutes: u32, now: Now) {
+        if let Some(s) = &mut self.session {
+            s.extend(minutes, now);
+            self.warned = false;
+            self.warning_until = None;
+            self.apply(now);
+        } else if let Some(c) = self.countdown.take() {
+            self.start(
+                Some(c.mode),
+                Some(Spec::Minutes { minutes }),
+                None,
+                Some(c.act),
+                now,
+            );
+        }
+    }
+
+    pub fn cancel_countdown(&mut self, now: Now) {
+        if self.countdown.take().is_some() {
+            self.apply(now);
+        }
+    }
+
+    /// "Sospendi ora": salta l'attesa.
+    pub fn countdown_now(&mut self, now: Now) {
+        if let Some(c) = self.countdown.take() {
+            self.effects.extend(then_effect(c.act));
+            self.apply(now);
+        }
+    }
+
+    pub fn dismiss_warning(&mut self) {
+        self.warning_until = None;
+        self.generation += 1;
+    }
+
+    /// Il promemoria "metti una stella su GitHub": dopo 5 avvii e 3 giorni,
+    /// mai se l'utente ha già risposto, mai insieme al benvenuto.
+    pub fn star_due(&self, now: Now) -> bool {
+        let m = &self.memory;
+        !m.star_done
+            && m.welcome_done
+            && m.launches >= 5
+            && m.first_seen_wall_ms > 0
+            && now.wall_ms - m.first_seen_wall_ms >= 3 * DAY_MS
+            && now.wall_ms >= m.star_snooze_until_ms
+    }
+
+    /// "Più tardi" (fra 14 giorni) o "non mostrare più".
+    pub fn answer_star(&mut self, never: bool, now: Now) {
+        if never {
+            self.memory.star_done = true;
+        } else {
+            self.memory.star_snooze_until_ms = now.wall_ms + 14 * DAY_MS;
+        }
+        self.generation += 1;
+        self.save_memory();
     }
 
     pub fn toggle(&mut self, now: Now) {
         if self.session.is_some() {
             self.stop(now);
         } else {
-            self.start(None, None, None, now);
+            self.start(None, None, None, None, now);
         }
     }
 
@@ -378,6 +539,7 @@ impl Core {
                 let mut s = Session::start(Mode::System, Spec::Never, now, &Local);
                 s.lid = self.memory.last_lid;
                 self.session = Some(s);
+                self.countdown = None;
                 self.arm_battery();
             }
             Some(s) => s.mode = Mode::System,
@@ -391,11 +553,58 @@ impl Core {
         self.save_memory();
     }
 
-    /// Il giro del timer: sessione scaduta, e scadenze del coperchio (i 10 s
-    /// di attesa, la protezione zaino). `true` se la sessione è finita.
+    /// Il giro del timer: sessione scaduta ("…e poi"), avviso dei 5 minuti,
+    /// conto alla rovescia, scadenze del coperchio (i 10 s di attesa, la
+    /// protezione zaino). `true` se qualcosa di visibile è cambiato.
     pub fn on_tick(&mut self, now: Now) -> bool {
-        if self.session.is_some_and(|s| s.is_expired(now)) {
-            self.stop(now);
+        if let Some(s) = self.session.filter(|s| s.is_expired(now)) {
+            self.session = None;
+            self.warning_until = None;
+            self.memory.next_then = ThenAct::None;
+            // Se il PC ha dormito oltre la scadenza, la sessione finisce e
+            // basta: niente spegnimento a sorpresa appena lo si riapre.
+            if s.then != ThenAct::None && s.overdue_ms(now) <= LATE_MS {
+                let silent = self.lid.tracker.is_closed();
+                self.countdown = Some(Countdown {
+                    act: s.then,
+                    at_tick: now.tick_ms
+                        + if silent {
+                            lidplan::GRACE_MS
+                        } else {
+                            COUNTDOWN_MS
+                        },
+                    silent,
+                    mode: s.mode,
+                });
+            }
+            self.apply(now);
+            if self.countdown.is_some() {
+                self.lid.tracker.cancel_released();
+            }
+            return true;
+        }
+        let mut changed = false;
+        if let Some(s) = self.session {
+            if self.settings.warn_before_end && !self.warned {
+                if let (Some(r), Some(total)) = (s.remaining_ms(now), s.total_ms()) {
+                    if total > WARN_MIN_TOTAL_MS && r <= WARN_BEFORE_MS {
+                        self.warned = true;
+                        self.warning_until = Some(now.tick_ms + WARN_SHOWN_MS);
+                        self.generation += 1;
+                        changed = true;
+                    }
+                }
+            }
+        }
+        if self.warning_until.is_some_and(|w| now.tick_ms >= w) {
+            self.warning_until = None;
+            self.generation += 1;
+            changed = true;
+        }
+        if let Some(c) = self.countdown.filter(|c| now.tick_ms >= c.at_tick) {
+            self.countdown = None;
+            self.effects.extend(then_effect(c.act));
+            self.apply(now);
             return true;
         }
         if self
@@ -406,7 +615,7 @@ impl Core {
         {
             self.apply(now);
         }
-        false
+        changed
     }
 
     /// Quanto può dormire il timer: fino alla scadenza, al prossimo cambio del
@@ -428,7 +637,64 @@ impl Core {
         if let Some(d) = self.lid.tracker.deadline() {
             ms = ms.min(d.saturating_sub(now.tick_ms) + 20);
         }
+        // Conto alla rovescia e avviso vanno seguiti al secondo.
+        if self.countdown.is_some() || self.warning_until.is_some() {
+            ms = ms.min(1_000);
+        }
+        // L'avviso dei 5 minuti deve comparire in tempo.
+        if let (Some(s), false) = (self.session, self.warned) {
+            if let Some(r) = s.remaining_ms(now) {
+                if r > WARN_BEFORE_MS {
+                    ms = ms.min(r - WARN_BEFORE_MS + 20);
+                }
+            }
+        }
         Duration::from_millis(ms.max(20))
+    }
+
+    /// Cosa deve mostrare la finestrella degli avvisi, se qualcosa.
+    pub fn toast(&self, now: Now) -> Option<ToastDto> {
+        let lang = self.lang;
+        if let Some(c) = self.countdown.filter(|c| !c.silent) {
+            let seconds = c.at_tick.saturating_sub(now.tick_ms).div_ceil(1000);
+            let label = then_label(lang, c.act);
+            return Some(ToastDto {
+                kind: "countdown",
+                title: tv(lang, countdown_key(c.act), &[("s", &seconds.to_string())]),
+                body: t(lang, "toast.countdown_body"),
+                act: Some(tv(lang, "toast.now", &[("action", &label)])),
+                seconds: Some(seconds),
+                total_seconds: COUNTDOWN_MS / 1000,
+                lang,
+            });
+        }
+        if self.warning_until.is_some() {
+            let s = self.session?;
+            let remaining = s.remaining_ms(now)?;
+            let body = if s.then == ThenAct::None {
+                t(lang, "toast.warning_body")
+            } else {
+                tv(
+                    lang,
+                    "toast.warning_then",
+                    &[("action", &then_label(lang, s.then))],
+                )
+            };
+            return Some(ToastDto {
+                kind: "warning",
+                title: tv(
+                    lang,
+                    "toast.warning_title",
+                    &[("time", &remaining_label(lang, remaining))],
+                ),
+                body,
+                act: None,
+                seconds: None,
+                total_seconds: 0,
+                lang,
+            });
+        }
+        None
     }
 
     pub fn view(&self, now: Now) -> View {
@@ -474,6 +740,18 @@ impl Core {
                 lid_mode,
                 lid: session.map(|s| s.lid).unwrap_or(self.memory.last_lid),
                 lid_held: self.lid.held(),
+                then: session.map(|s| s.then).unwrap_or(self.memory.next_then),
+                then_choices: ThenAct::ALL
+                    .iter()
+                    .map(|&act| ThenChoice {
+                        value: act,
+                        label: then_label(lang, act),
+                    })
+                    .collect(),
+                // Con "finché non lo spegni" non c'è una fine: niente "…e poi".
+                then_row: !session.is_some_and(|s| s.spec == Spec::Never),
+                update: self.update_version.clone(),
+                star: self.star_due(now),
             },
             status,
             active,
@@ -547,6 +825,47 @@ pub struct StateDto {
     pub lid: bool,
     /// Moka sta tenendo l'impostazione del coperchio su "non fare nulla".
     pub lid_held: bool,
+    /// "…e poi" della sessione in corso, o della prossima.
+    pub then: ThenAct,
+    pub then_choices: Vec<ThenChoice>,
+    pub then_row: bool,
+    /// Versione nuova disponibile.
+    pub update: Option<String>,
+    /// Mostrare il promemoria stella.
+    pub star: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThenChoice {
+    pub value: ThenAct,
+    pub label: String,
+}
+
+/// La finestrella degli avvisi: "si spegne tra 5 minuti" oppure il conto
+/// alla rovescia di "…e poi".
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ToastDto {
+    pub kind: &'static str,
+    pub title: String,
+    pub body: String,
+    /// Etichetta del pulsante "Sospendi ora".
+    pub act: Option<String>,
+    pub seconds: Option<u64>,
+    pub total_seconds: u64,
+    pub lang: Lang,
+}
+
+/// Scritte per esteso, non composte: così il test delle traduzioni le vede.
+fn countdown_key(act: ThenAct) -> &'static str {
+    match act {
+        ThenAct::None | ThenAct::Sleep => "then.countdown_sleep",
+        ThenAct::ScreenOff => "then.countdown_screen_off",
+        ThenAct::Lock => "then.countdown_lock",
+        ThenAct::Hibernate => "then.countdown_hibernate",
+        ThenAct::Shutdown => "then.countdown_shutdown",
+    }
 }
 
 /// Cache di ciò che è già stato mostrato nella tray, per non ridisegnarla

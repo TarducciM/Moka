@@ -19,6 +19,8 @@
   const lidRow = $("lid-row");
   const lidSwitch = $("lid-switch");
   const lidHint = $("lid-row-hint");
+  const thenSelect = $("then");
+  let thenKey = "";
   const modeButtons = [...document.querySelectorAll("[data-mode]")];
 
   let state = null;
@@ -75,6 +77,31 @@
     lidRow.hidden = !s.lidRow;
     lidSwitch.setAttribute("aria-checked", String(s.lid));
     lidHint.textContent = I18n.t(s.lidMode === "always" ? "lid.row_hint_always" : "lid.row_hint_ac");
+
+    // "…e poi": le scelte (e le etichette tradotte) arrivano da Rust.
+    const key = s.thenChoices.map((c) => c.value + ":" + c.label).join("|");
+    if (key !== thenKey) {
+      thenKey = key;
+      thenSelect.replaceChildren(
+        ...s.thenChoices.map((c) => {
+          const option = document.createElement("option");
+          option.value = c.value;
+          option.textContent = c.label;
+          return option;
+        }),
+      );
+    }
+    if (document.activeElement !== thenSelect) thenSelect.value = s.then;
+    $("then-row").hidden = !s.thenRow;
+
+    // Aggiornamento: mai durante una sessione (cadrebbe a metà).
+    $("update-card").hidden = !s.update;
+    if (s.update) {
+      $("update-text").textContent = I18n.t("popover.update", { version: s.update });
+      $("update-btn").hidden = s.active;
+      $("update-hint").hidden = !s.active;
+    }
+    $("star-card").hidden = !s.star || s.welcome || s.lidQuestion;
     fit();
   }
 
@@ -168,6 +195,14 @@
   $("open-settings").addEventListener("click", () => act("open_settings"));
   $("welcome-ok").addEventListener("click", () => act("dismiss_welcome"));
   lidSwitch.addEventListener("click", () => act("set_lid", { on: !state.lid }));
+  thenSelect.addEventListener("change", () => act("set_then", { then: thenSelect.value }));
+  $("update-btn").addEventListener("click", () => act("install_update"));
+  $("star-open").addEventListener("click", () => {
+    window.__TAURI__.opener.openUrl("https://github.com/TarducciM/Moka").catch(() => {});
+    act("answer_star", { never: true });
+  });
+  $("star-later").addEventListener("click", () => act("answer_star", { never: false }));
+  $("star-never").addEventListener("click", () => act("answer_star", { never: true }));
   $("lid-confirm").addEventListener("click", () => {
     const mode = document.querySelector('input[name="lid-answer"]:checked').value;
     act("answer_lid", { mode, desk: $("lid-desk").checked });

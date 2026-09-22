@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Moka: protezione alla disinstallazione dell'MSI (bundle.windows.wix).
+
+     Prima di togliere i file si chiude Moka in modo pulito (l'opzione quit rimette com'era
+     l'impostazione del coperchio) e poi si ripara un eventuale registro lasciato da un crash
+     (l'opzione restore-lid). Senza, una disinstallazione con la modifica attiva la lascerebbe
+     cambiata: RunOnce punterebbe a un eseguibile appena cancellato.
+
+     Il componente serve solo a far includere questo frammento (Tauri lo lega tramite
+     componentRefs); le azioni sono immediate, quindi girano come l'utente e prima di
+     InstallValidate, cioè prima che Windows Installer cerchi i file in uso.
+
+     Attenzione: un commento XML non può contenere due trattini di fila, quindi qui le
+     opzioni sono scritte senza. -->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Fragment>
+        <DirectoryRef Id="INSTALLDIR">
+            <Component Id="MokaUninstallGuard" Guid="*" Win64="yes">
+                <RegistryValue Root="HKLM" Key="Software\Moka" Name="UninstallGuard" Type="integer" Value="1" KeyPath="yes" />
+            </Component>
+        </DirectoryRef>
+
+        <CustomAction Id="MokaQuitBeforeRemove" FileKey="Path" ExeCommand="--quit" Execute="immediate" Return="ignore" Impersonate="yes" />
+        <CustomAction Id="MokaRestoreLidBeforeRemove" FileKey="Path" ExeCommand="--restore-lid" Execute="immediate" Return="ignore" Impersonate="yes" />
+
+        <InstallExecuteSequence>
+            <Custom Action="MokaQuitBeforeRemove" Before="InstallValidate">REMOVE="ALL"</Custom>
+            <Custom Action="MokaRestoreLidBeforeRemove" After="MokaQuitBeforeRemove">REMOVE="ALL"</Custom>
+        </InstallExecuteSequence>
+    </Fragment>
+</Wix>

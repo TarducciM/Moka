@@ -28,6 +28,22 @@
         </button>
       </header>
 
+      <section class="update-card" id="update-card" hidden>
+        <p class="update-text" id="update-text"></p>
+        <button type="button" class="btn btn-small btn-accent" id="update-btn" data-i18n="popover.update_install"></button>
+        <small class="update-hint" id="update-hint" data-i18n="popover.update_later" hidden></small>
+      </section>
+
+      <section class="welcome" id="star-card" hidden aria-labelledby="star-title">
+        <h2 class="welcome-title" id="star-title" data-i18n="popover.star_title"></h2>
+        <p class="welcome-body" data-i18n="popover.star_body"></p>
+        <div class="card-actions">
+          <button type="button" class="btn btn-small btn-accent" id="star-open" data-i18n="popover.star_open"></button>
+          <button type="button" class="btn btn-small" id="star-later" data-i18n="popover.star_later"></button>
+          <button type="button" class="btn btn-small btn-quiet" id="star-never" data-i18n="popover.star_never"></button>
+        </div>
+      </section>
+
       <section class="welcome" id="welcome" hidden>
         <h2 class="welcome-title" data-i18n="popover.welcome_title"></h2>
         <p class="welcome-body" data-i18n="popover.welcome_body"></p>
@@ -107,6 +123,10 @@
           <input type="time" id="until" required />
           <button type="submit" class="btn" data-i18n="popover.until_start"></button>
         </form>
+        <div class="then-row" id="then-row">
+          <label for="then" data-i18n="popover.then"></label>
+          <select id="then"></select>
+        </div>
       </section>
 
       <footer class="foot">

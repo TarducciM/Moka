@@ -1,8 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Pannello e Impostazioni: comandi di Moka, eventi, link esterni.",
-  "windows": ["popover", "settings"],
+  "description": "Pannello, Impostazioni e avvisi: comandi di Moka, eventi, link esterni.",
+  "windows": [
+    "popover",
+    "settings",
+    "toast"
+  ],
   "permissions": [
     "core:default",
     "opener:default"

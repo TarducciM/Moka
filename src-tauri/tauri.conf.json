@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Moka",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "identifier": "com.moka.app",
   "build": {
     "frontendDist": "../src"
@@ -38,6 +38,25 @@
         "center": true,
         "create": false,
         "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-gpu"
+      },
+      {
+        "label": "toast",
+        "url": "toast.html",
+        "title": "Moka",
+        "width": 360,
+        "height": 150,
+        "visible": false,
+        "decorations": false,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "skipTaskbar": true,
+        "alwaysOnTop": true,
+        "shadow": true,
+        "focus": false,
+        "focusable": false,
+        "create": false,
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-gpu"
       }
     ],
     "security": {
@@ -59,6 +78,38 @@
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.ico"
-    ]
+    ],
+    "homepage": "https://moka.mtsolutions.studio",
+    "windows": {
+      "nsis": {
+        "template": "installer.nsi",
+        "installerHooks": "installer-hooks.nsh",
+        "languages": [
+          "English",
+          "Italian"
+        ],
+        "displayLanguageSelector": false,
+        "installMode": "currentUser"
+      },
+      "wix": {
+        "fragmentPaths": [
+          "wix/uninstall-guard.wxs"
+        ],
+        "componentRefs": [
+          "MokaUninstallGuard"
+        ]
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc0MkU2QzQzRjE0RTJGMTMKUldRVEwwN3hRMnd1ZENIRXZwZnUweEV2eUxleVpIOG9RdFNrNkt6T3lUbEJXYTkzd2dDYmZXTkMK",
+      "endpoints": [
+        "https://github.com/TarducciM/Moka/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Moka</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="i18n.js"></script>
+    <script src="toast.js" defer></script>
+  </head>
+  <body class="toast-page is-on">
+    <main id="toast" class="alert" role="alertdialog" aria-live="assertive" aria-labelledby="toast-title" aria-describedby="toast-body">
+      <div class="toast-head">
+        <span class="pot pot-small" aria-hidden="true">
+          <svg viewBox="2 0.5 29 29">
+            <path class="pot-body" d="M6.5 10 L22 10 L20 17 L23 28 L9 28 L12 17 L10.5 13.5 Z" />
+            <rect class="pot-knob" x="14" y="7" width="4" height="3" rx="0.6" />
+            <path class="pot-handle" d="M21.6 11.5 H26 L25 16 H20.3" />
+          </svg>
+        </span>
+        <div>
+          <p class="toast-title" id="toast-title"></p>
+          <p class="toast-body" id="toast-body"></p>
+        </div>
+      </div>
+      <div class="toast-progress" id="toast-progress" hidden>
+        <span class="toast-bar" id="toast-bar"></span>
+      </div>
+      <div class="toast-actions">
+        <button type="button" class="btn" id="t-cancel" data-i18n="toast.cancel"></button>
+        <button type="button" class="btn" id="t-extend" data-i18n="toast.extend"></button>
+        <button type="button" class="btn btn-accent" id="t-now"></button>
+        <button type="button" class="btn" id="t-ok" data-i18n="toast.ok"></button>
+      </div>
+    </main>
+  </body>
+</html>

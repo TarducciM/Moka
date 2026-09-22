@@ -16,8 +16,10 @@ pub mod sysevents;
 mod commands;
 mod control;
 mod popover;
+mod shortcuts;
 mod state;
 mod tray;
+mod updates;
 
 use std::sync::{Condvar, Mutex};
 use std::time::Duration;
@@ -62,6 +64,8 @@ pub fn run() {
         ))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .manage(updates::Pending::default())
         .manage(Mutex::new(popover::PopoverState::default()))
         .invoke_handler(tauri::generate_handler![
             commands::get_state,
@@ -81,6 +85,17 @@ pub fn run() {
             commands::set_lid,
             commands::answer_lid,
             commands::restore_lid_now,
+            commands::set_then,
+            commands::extend_session,
+            commands::cancel_countdown,
+            commands::countdown_now,
+            commands::dismiss_warning,
+            commands::get_toast,
+            commands::toast_ready,
+            commands::fit_toast,
+            commands::answer_star,
+            commands::check_updates,
+            commands::install_update,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -91,6 +106,10 @@ pub fn run() {
                 handle.exit(0);
                 return Ok(());
             }
+
+            // Qui e non con gli altri plugin: il Builder dell'updater vuole un AppHandle.
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
 
             let dir = app.path().app_data_dir()?;
             let paths = Paths {
@@ -154,6 +173,9 @@ pub fn run() {
                 sysevents::spawn(move |event| control::on_sys_event(&h, event));
             }
 
+            control::apply_shortcuts(&handle);
+            updates::spawn_checker(handle.clone());
+
             control::apply_cli(&handle, startup.action.clone(), false);
 
             if show_welcome {
@@ -201,7 +223,7 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
     let id = event.id.as_ref();
     match id {
         "toggle" => control::toggle(app),
-        "for:never" => control::start(app, None, Some(Spec::Never), None),
+        "for:never" => control::start(app, None, Some(Spec::Never), None, None),
         "until" => {
             control::show_popover_at_tray(app);
             let _ = app.emit_to(popover::LABEL, "moka://focus-until", ());
@@ -242,7 +264,7 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
         "quit" => control::quit(app),
         other => {
             if let Some(minutes) = other.strip_prefix("for:").and_then(|m| m.parse().ok()) {
-                control::start(app, None, Some(Spec::Minutes { minutes }), None);
+                control::start(app, None, Some(Spec::Minutes { minutes }), None, None);
             }
         }
     }
@@ -259,13 +281,13 @@ fn spawn_ticker(app: AppHandle) {
             let mut core = st.core.lock().unwrap();
             loop {
                 let now = sys::now();
-                let expired = core.on_tick(now);
+                let changed = core.on_tick(now);
                 let wait = core.next_wait(now);
                 let seen = core.generation;
                 let effects = std::mem::take(&mut core.effects);
                 let modern_standby = core.lid.caps.modern_standby;
                 drop(core);
-                control::request_refresh(&app, expired || !effects.is_empty());
+                control::request_refresh(&app, changed || !effects.is_empty());
                 control::run_effects(effects, modern_standby);
                 core = st.core.lock().unwrap();
                 if core.generation == seen {

@@ -109,6 +109,143 @@ svg {
   min-height: 28px;
 }
 
+.btn-accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.btn-accent:hover {
+  border-color: var(--text);
+}
+
+.btn-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ------------------------------------------------------------------ avvisi */
+
+.toast-page {
+  overflow: hidden;
+  user-select: none;
+  cursor: default;
+}
+
+/* .alert e non .toast: .toast è già il messaggio "Salvato" delle Impostazioni. */
+.alert {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.toast-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.pot-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.pot-small svg {
+  width: 20px;
+  height: 20px;
+}
+
+.toast-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.toast-body {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.toast-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.toast-bar {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--accent);
+  transition: width 0.4s linear;
+}
+
+.toast-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ---------------------------------------------------- aggiornamento, poi */
+
+.update-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+
+.update-text {
+  flex: 1;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.update-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.then-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.then-row label {
+  color: var(--muted);
+  font-size: 13px;
+  min-width: 52px;
+}
+
+.then-row select {
+  flex: 1;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 4px 8px;
+}
+
 /* ---------------------------------------------------------------- pannello */
 
 .popover-page {

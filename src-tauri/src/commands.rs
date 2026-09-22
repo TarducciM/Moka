@@ -10,13 +10,14 @@ use tauri::{AppHandle, Manager, State, WebviewWindow, WebviewWindowBuilder};
 use crate::control;
 use crate::i18n::{duration_label, lid_action_label, t, tv, Lang};
 use crate::popover;
-use crate::session::{format_duration_compact, Mode, Spec};
+use crate::session::{format_duration_compact, Mode, Spec, ThenAct};
 use crate::settings::{
-    parse_durations_text, spec_is_valid, LangSetting, LeftClick, LidMode, BACKPACK_CHOICES,
-    BATTERY_CHOICES,
+    normalize_shortcut, parse_durations_text, spec_is_valid, LangSetting, LeftClick, LidMode,
+    BACKPACK_CHOICES, BATTERY_CHOICES, SHORTCUT_CHOICES,
 };
-use crate::state::{AppState, StateDto};
+use crate::state::{AppState, StateDto, ToastDto};
 use crate::sys;
+use crate::updates;
 
 pub const SETTINGS_LABEL: &str = "settings";
 
@@ -30,8 +31,72 @@ pub fn start_session(app: AppHandle, spec: Spec, mode: Option<Mode>) -> Result<(
     if !spec_is_valid(spec) {
         return Err(format!("durata non valida: {spec:?}"));
     }
-    control::start(&app, mode, Some(spec), None);
+    control::start(&app, mode, Some(spec), None, None);
     Ok(())
+}
+
+/// "Poi:" nel pannello.
+#[tauri::command]
+pub fn set_then(app: AppHandle, then: ThenAct) {
+    control::with_core(&app, |c| c.set_then(then, sys::now()));
+}
+
+/// "+30 min", dall'avviso o dal conto alla rovescia.
+#[tauri::command]
+pub fn extend_session(app: AppHandle, minutes: u32) {
+    let minutes = minutes.clamp(1, 24 * 60);
+    control::with_core(&app, |c| c.extend(minutes, sys::now()));
+}
+
+#[tauri::command]
+pub fn cancel_countdown(app: AppHandle) {
+    control::with_core(&app, |c| c.cancel_countdown(sys::now()));
+}
+
+#[tauri::command]
+pub fn countdown_now(app: AppHandle) {
+    control::with_core(&app, |c| c.countdown_now(sys::now()));
+}
+
+#[tauri::command]
+pub fn dismiss_warning(app: AppHandle) {
+    control::with_core(&app, |c| c.dismiss_warning());
+}
+
+/// Cosa mostra la finestrella degli avvisi.
+#[tauri::command]
+pub fn get_toast(state: State<'_, AppState>) -> Option<ToastDto> {
+    state.core.lock().unwrap().toast(sys::now())
+}
+
+/// La finestrella è pronta: si mostra senza rubare il focus a chi lavora.
+#[tauri::command]
+pub fn toast_ready(app: AppHandle, height: f64) {
+    control::place_toast(&app, height);
+    if let Some(win) = app.get_webview_window(control::TOAST_LABEL) {
+        let _ = win.show();
+    }
+}
+
+#[tauri::command]
+pub fn fit_toast(app: AppHandle, height: f64) {
+    control::place_toast(&app, height);
+}
+
+/// Promemoria stella: "più tardi" (`never: false`) o "non mostrare più".
+#[tauri::command]
+pub fn answer_star(app: AppHandle, never: bool) {
+    control::with_core(&app, |c| c.answer_star(never, sys::now()));
+}
+
+#[tauri::command]
+pub async fn check_updates(app: AppHandle) -> Result<Option<String>, String> {
+    updates::check(&app).await
+}
+
+#[tauri::command]
+pub async fn install_update(app: AppHandle) -> Result<(), String> {
+    updates::install(&app).await
 }
 
 /// "Anche a coperchio chiuso" nel pannello.
@@ -174,6 +239,19 @@ pub struct SettingsDto {
     /// Moka la sta tenendo su "non fare nulla" adesso.
     pub lid_held: bool,
     pub lid_error: Option<String>,
+    pub warn_before_end: bool,
+    pub shortcut_toggle: String,
+    pub shortcut_screen_off: String,
+    pub shortcut_choices: Vec<ShortcutChoice>,
+    pub shortcut_error: Option<String>,
+    pub update_version: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShortcutChoice {
+    pub value: String,
+    pub label: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -188,6 +266,9 @@ pub struct SettingsPatch {
     pub lock_on_lid_open: Option<bool>,
     pub backpack_minutes: Option<u32>,
     pub battery_threshold: Option<u32>,
+    pub warn_before_end: Option<bool>,
+    pub shortcut_toggle: Option<String>,
+    pub shortcut_screen_off: Option<String>,
 }
 
 fn settings_dto(app: &AppHandle) -> SettingsDto {
@@ -258,6 +339,25 @@ fn settings_dto(app: &AppHandle) -> SettingsDto {
             .last_error
             .as_ref()
             .map(|e| tv(lang, "settings.lid_error", &[("error", e)])),
+        warn_before_end: core.settings.warn_before_end,
+        shortcut_toggle: core.settings.shortcut_toggle.clone(),
+        shortcut_screen_off: core.settings.shortcut_screen_off.clone(),
+        shortcut_choices: SHORTCUT_CHOICES
+            .iter()
+            .map(|&value| ShortcutChoice {
+                value: value.to_owned(),
+                label: if value.is_empty() {
+                    t(lang, "settings.shortcut_none")
+                } else {
+                    value.replace("Shift", &t(lang, "keys.shift"))
+                },
+            })
+            .collect(),
+        shortcut_error: core
+            .shortcut_error
+            .as_ref()
+            .map(|e| tv(lang, "settings.shortcut_error", &[("keys", e)])),
+        update_version: core.update_version.clone(),
     }
 }
 
@@ -309,8 +409,21 @@ pub fn update_settings(app: AppHandle, patch: SettingsPatch) -> Result<SettingsD
         {
             core.settings.battery_threshold = b;
         }
+        if let Some(w) = patch.warn_before_end {
+            core.settings.warn_before_end = w;
+        }
+        if let Some(s) = &patch.shortcut_toggle {
+            core.settings.shortcut_toggle = normalize_shortcut(s);
+        }
+        if let Some(s) = &patch.shortcut_screen_off {
+            core.settings.shortcut_screen_off = normalize_shortcut(s);
+        }
+        core.settings = std::mem::take(&mut core.settings).dedup_shortcuts();
         core.save_settings()
             .map_err(|e| tv(lang, "settings.save_error", &[("error", &e.to_string())]))
     });
+    if result.is_ok() && (patch.shortcut_toggle.is_some() || patch.shortcut_screen_off.is_some()) {
+        control::apply_shortcuts(&app);
+    }
     result.map(|()| settings_dto(&app))
 }

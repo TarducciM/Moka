@@ -20,6 +20,10 @@
   const deskMode = $("desk-mode");
   const lockOnOpen = $("lock-on-open");
   const batteryThreshold = $("battery-threshold");
+  const warnBeforeEnd = $("warn-before-end");
+  const shortcutToggle = $("shortcut-toggle");
+  const shortcutScreenOff = $("shortcut-screen-off");
+  const updateStatus = $("update-status");
   let toastTimer = null;
 
   async function fill(s) {
@@ -53,6 +57,21 @@
 
     $("battery-card").hidden = !s.hasBattery;
     fillSelect(batteryThreshold, s.batteryChoices, s.batteryThreshold);
+
+    warnBeforeEnd.checked = s.warnBeforeEnd;
+    fillSelect(shortcutToggle, s.shortcutChoices, s.shortcutToggle);
+    fillSelect(shortcutScreenOff, s.shortcutChoices, s.shortcutScreenOff);
+    $("shortcut-error").hidden = !s.shortcutError;
+    $("shortcut-error").textContent = s.shortcutError || "";
+    if (s.updateVersion) {
+      showUpdate(I18n.t("settings.update_available", { version: s.updateVersion }), true);
+    }
+  }
+
+  function showUpdate(text, installable) {
+    updateStatus.hidden = false;
+    updateStatus.textContent = text;
+    $("update-install").hidden = !installable;
   }
 
   // Le opzioni (e le loro etichette tradotte) arrivano da Rust: la pagina
@@ -106,6 +125,31 @@
   batteryThreshold.addEventListener("change", () =>
     save({ batteryThreshold: Number(batteryThreshold.value) }),
   );
+  warnBeforeEnd.addEventListener("change", () => save({ warnBeforeEnd: warnBeforeEnd.checked }));
+  shortcutToggle.addEventListener("change", () => save({ shortcutToggle: shortcutToggle.value }));
+  shortcutScreenOff.addEventListener("change", () =>
+    save({ shortcutScreenOff: shortcutScreenOff.value }),
+  );
+  $("update-check").addEventListener("click", async () => {
+    showUpdate(I18n.t("settings.update_checking"), false);
+    try {
+      const version = await invoke("check_updates");
+      if (version) {
+        showUpdate(I18n.t("settings.update_available", { version }), true);
+      } else {
+        showUpdate(I18n.t("settings.update_none"), false);
+      }
+    } catch (err) {
+      showUpdate(I18n.t("settings.update_error", { error: String(err) }), false);
+    }
+  });
+  $("update-install").addEventListener("click", async () => {
+    try {
+      await invoke("install_update");
+    } catch (err) {
+      showUpdate(String(err), false);
+    }
+  });
   $("restore-lid").addEventListener("click", async () => {
     await fill(await invoke("restore_lid_now"));
   });

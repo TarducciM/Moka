@@ -3,7 +3,7 @@
 //   npm run icons
 //
 // Scrive:
-//   assets/app-icon.svg, src/app-icon.svg icona dell'app (installer, Impostazioni)
+//   assets/app-icon.svg, src/app-icon.svg, site/favicon.svg  icona dell'app
 //   assets/tray/<stato>-<barra>.svg        sorgenti dell'icona nella tray
 //   src-tauri/icons/                       icone dell'app in tutti i formati
 //   src-tauri/icons/tray/<stato>-<barra>-<px>.png
@@ -126,8 +126,9 @@ mkdirSync(join(root, "assets", "tray"), { recursive: true });
 mkdirSync(join(root, "src-tauri", "icons", "tray"), { recursive: true });
 
 writeFileSync(join(root, "assets", "app-icon.svg"), appSvg());
-// La stessa, servita alle Impostazioni.
+// La stessa, servita alle Impostazioni e al sito.
 writeFileSync(join(root, "src", "app-icon.svg"), appSvg());
+writeFileSync(join(root, "site", "favicon.svg"), appSvg());
 tauriIcon([join(root, "assets", "app-icon.svg"), "-o", join(root, "src-tauri", "icons")]);
 // Moka è solo per Windows: le icone per Android e iOS non servono.
 for (const extra of ["android", "ios"]) {

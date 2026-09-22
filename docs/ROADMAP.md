@@ -1,6 +1,6 @@
 # Moka — piano di progetto
 
-> **Stato: sviluppo, 0.0.2.** Il nucleo della 0.1 e tutta la parte della 0.2 che non dipende dallo spike sono scritti e verificati su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md). Lo spike decide **quali richieste** tenere a coperchio chiuso, non come si cambia e si rimette l'impostazione di Windows, che è già fatto e provato.
+> **Stato: sviluppo, 0.0.3.** Tutto il codice fino alla 0.3 (prima release pubblica) è scritto; la pubblicazione aspetta lo spike e i passi di Michele in [`RELEASE.md`](RELEASE.md). In dettaglio: Il nucleo della 0.1 e tutta la parte della 0.2 che non dipende dallo spike sono scritti e verificati su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md). Lo spike decide **quali richieste** tenere a coperchio chiuso, non come si cambia e si rimette l'impostazione di Windows, che è già fatto e provato.
 >
 > Questo file è il punto di ripresa: chi riprende il lavoro, da qualunque PC, parte da qui. Va aggiornato a ogni passaggio significativo, insieme a `CHANGELOG.md`.
 >
@@ -460,15 +460,16 @@ Ogni passaggio: bump di patch più voce nel `CHANGELOG`. Minor alle tappe qui so
 
 ### 0.3.0 — prima release pubblica
 
-- [ ] "…e poi" con conto alla rovescia
-- [ ] Notifica 5 minuti prima della fine con "+30 min" (vedi trappola 20)
-- [ ] Tasti rapidi globali (accendi/spegni, spegni schermo ora), scelti da una lista di combinazioni sicure, **niente Ctrl+Alt** (trappola 19)
-- [ ] Riga di comando: `--then` (il resto è già nella 0.1)
-- [ ] Installer NSIS + MSI + portable (oggi c'è già il workflow manuale `build`, senza firma né aggiornamenti): pagina "Attività aggiuntive" per l'avvio automatico, e `--restore-lid` alla disinstallazione
-- [ ] Auto-update firmato
-- [ ] Promemoria stella GitHub
-- [ ] `site/` con index, privacy, terms, cookie policy
-- [ ] Repo pubblico, poi tag `v0.3.0`
+- [x] "…e poi" con conto alla rovescia di 60 s (annulla, +30 min, adesso), in una finestrella che non ruba il focus; a coperchio chiuso solo i 10 s di garanzia, senza finestra; vince su ciò che Windows avrebbe fatto
+- [x] Avviso 5 minuti prima della fine con "+30 min" (nella stessa finestrella, non una notifica di Windows: vedi trappola 20)
+- [x] Tasti rapidi globali (accendi/spegni, spegni schermo ora), da una lista sicura: Ctrl+Maiusc+F7…F11 e Ctrl+Maiusc+Pausa, **niente Ctrl+Alt** (trappola 19)
+- [x] Riga di comando: `--then` (da solo cambia il "…e poi" della sessione in corso)
+- [x] Installer NSIS (pagina "Attività aggiuntive", italiano e inglese) + MSI + portable; alla disinstallazione e agli aggiornamenti Moka si chiude in modo pulito e l'impostazione del coperchio torna com'era
+- [x] Auto-update firmato: chiave generata, controllo all'avvio e ogni 24 ore, **mai durante una sessione**
+- [x] Promemoria stella GitHub
+- [x] `site/` con index, privacy, terms, cookie policy (bozze legali da far rivedere)
+- [x] `release.yml`: NSIS + MSI + portable, `latest.json` costruito a mano, bozza, controllo tag/versione, pulizia se fallisce
+- [ ] **Michele** (`docs/RELEASE.md`): copia della chiave privata, secret su GitHub, repo pubblico, DNS del sito, voce nella home MTSolutions, tag `v0.3.0` e pubblicazione della bozza
 
 ### 0.4.0 — regole automatiche e Presenza
 
@@ -607,6 +608,14 @@ Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
 36. Con `crate-type` `staticlib`/`cdylib` (quelli del template di Tauri, pensati per mobile) il linker MSVC stampa "Creazione della libreria …" e Rust recente lo segnala come avviso (`linker_messages`). Moka è solo per Windows: basta `rlib`.
 37. Dopo un `taskkill /F` il processo sparisce e con lui le richieste (verificato), ma sparisce anche il `tauri dev` che lo aveva lanciato: per riprovare la ripresa della sessione va rilanciato.
 
+### Trovate scrivendo la 0.0.3 (2026-09-22)
+
+41. Il template NSIS di Tauri ha degli **agganci** (`installerHooks`: prima e dopo installazione e disinstallazione) che permettono di aggiungere logica senza copiare il template. Una pagina nuova ("Attività aggiuntive") invece richiede il template: Moka usa entrambi, e il template differisce dall'originale solo in tre punti marcati "Moka:".
+42. Alla disinstallazione l'ordine conta: se l'installer chiude Moka a forza con la modifica del coperchio attiva, `RunOnce` punterebbe a un eseguibile appena cancellato e l'impostazione resterebbe cambiata per sempre. Prima `moka --quit` (uscita pulita), poi `--restore-lid`, e solo dopo i file.
+43. `createUpdaterArtifacts: true` nella configurazione normale fa fallire ogni `tauri build` senza la chiave privata (anche in locale e nel workflow `build`). Sta in `tauri.release.conf.json`, usato solo dalla release.
+44. La classe `.toast` esisteva già (il messaggio "Salvato" delle Impostazioni, fisso e trasparente): la finestrella degli avvisi la ereditava e restava invisibile. Lezione generale: un foglio di stile condiviso fra più pagine vuole nomi di classe che non si pestino.
+45. `focusable: false` nella configurazione della finestra la mostra senza rubare il focus a chi sta scrivendo: giusto per un avviso che compare da solo.
+
 ### Trovate scrivendo la 0.0.2 (2026-09-22)
 
 38. Il binario di debug lanciato da solo (`target/debug/moka.exe`) cerca le pagine sul server di sviluppo (`127.0.0.1:1430`): se `tauri dev` non gira, le finestre restano vuote. Va bene per provare la parte Rust (sessioni, coperchio, riga di comando), non l'interfaccia.
@@ -665,7 +674,7 @@ Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
 
 ## Cosa NON viaggia fra i PC
 
-- La chiave privata dell'updater, quando esisterà: sta nel secret su GitHub e in un backup esterno, mai nel repo.
+- La chiave privata dell'updater: generata il 2026-09-22 su LPT-MIKI in `%USERPROFILE%\.tauri\moka-updater.key` (senza password). Va nel secret su GitHub e in un backup esterno, **mai nel repo**. Su un altro PC non c'è: le build locali con firma si fanno solo da LPT-MIKI (le build normali non la chiedono).
 - Le note di sviluppo locali sono escluse dal repo di proposito (vedi `.gitignore`): tutto ciò che serve per riprendere deve stare **in questo file**.
 - Il lavoro non pushato. Si pusha a ogni passaggio, non solo a fine giornata.
 

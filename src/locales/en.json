@@ -110,5 +110,60 @@
   "settings.battery_hint": "Only on battery. A session started with the battery already below the threshold isn't interrupted.",
 
   "notify.battery_title": "Moka turned off",
-  "notify.battery_body": "Battery at {percent}%: the PC is back to its usual behavior."
+  "notify.battery_body": "Battery at {percent}%: the PC is back to its usual behavior.",
+
+  "then.none": "Nothing",
+  "then.screen_off": "Turn off the screen",
+  "then.lock": "Lock the PC",
+  "then.sleep": "Sleep",
+  "then.hibernate": "Hibernate",
+  "then.shutdown": "Shut down",
+  "then.countdown_screen_off": "Screen off in {s} s",
+  "then.countdown_lock": "Locking the PC in {s} s",
+  "then.countdown_sleep": "Sleeping in {s} s",
+  "then.countdown_hibernate": "Hibernating in {s} s",
+  "then.countdown_shutdown": "Shutting down in {s} s",
+
+  "reason.then": "Moka: {action} shortly",
+
+  "toast.countdown_body": "Moka's session has ended.",
+  "toast.now": "{action} now",
+  "toast.cancel": "Cancel",
+  "toast.extend": "+30 min",
+  "toast.ok": "OK",
+  "toast.warning_title": "Moka turns off in {time}",
+  "toast.warning_body": "Then the PC goes back to its usual behavior.",
+  "toast.warning_then": "Then: {action}.",
+
+  "popover.then": "Then",
+  "popover.update": "Moka {version} is ready",
+  "popover.update_install": "Update",
+  "popover.update_later": "Updates once the session is off",
+  "popover.star_title": "Enjoying Moka?",
+  "popover.star_body": "A star on GitHub helps other people find it.",
+  "popover.star_open": "Star it",
+  "popover.star_later": "Later",
+  "popover.star_never": "Don't ask again",
+
+  "update.session_active": "Moka updates once the session is off: it would stop halfway.",
+  "update.none": "No update to install.",
+
+  "settings.warn_before_end": "Warn 5 minutes before the end",
+  "settings.warn_hint": "With a “+30 min” button. Only for sessions longer than 10 minutes.",
+  "settings.section_shortcuts": "Keyboard shortcuts",
+  "settings.shortcut_toggle": "Turn on or off",
+  "settings.shortcut_screen_off": "Turn off the screen now",
+  "settings.shortcut_none": "None",
+  "settings.shortcut_error": "Not available, another app already uses it: {keys}",
+  "settings.shortcut_hint": "They work anywhere in Windows.",
+  "settings.section_updates": "Updates",
+  "settings.update_check": "Check for updates",
+  "settings.update_checking": "Checking…",
+  "settings.update_none": "You already have the latest version.",
+  "settings.update_available": "Moka {version} is available.",
+  "settings.update_install": "Install and restart",
+  "settings.update_error": "Check failed: {error}",
+  "settings.update_hint": "Moka checks on its own once a day: it's the only time it goes online.",
+
+  "keys.shift": "Shift"
 }

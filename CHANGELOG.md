@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-09-22 — 0.0.3: tutto il necessario per la prima release
+
+- **"…e poi"**:
+  - a fine sessione a tempo spegne lo schermo, blocca, sospende, iberna o arresta il PC, dopo un conto alla rovescia di 60 s in una finestrella che non ruba il focus (Annulla, +30 min, Adesso);
+  - durante l'attesa il PC resta sveglio;
+  - se il PC ha dormito oltre la scadenza non fa niente;
+  - a coperchio chiuso aspetta solo 10 s, e vince su ciò che Windows avrebbe fatto;
+  - `--then` da riga di comando.
+- **Avviso 5 minuti prima della fine**, con "+30 min".
+- **Tasti rapidi globali** per accendere/spegnere e per spegnere lo schermo, da una lista sicura (niente Ctrl+Alt).
+- **Aggiornamenti automatici firmati**: controllo all'avvio e ogni 24 ore, installazione solo su richiesta e mai durante una sessione; prima di installare l'impostazione del coperchio torna com'era.
+- **Installer**:
+  - NSIS con la pagina "Attività aggiuntive" in italiano e in inglese;
+  - MSI;
+  - agli aggiornamenti e alla disinstallazione Moka si chiude in modo pulito e rimette l'impostazione del coperchio (agganci NSIS e un frammento WiX).
+- **Workflow `release.yml`**:
+  - installer, portable e `latest.json` costruito a mano;
+  - release in bozza, pulizia se fallisce;
+  - controllo che il tag coincida con la versione.
+- **Promemoria stella su GitHub** (dopo 5 avvii e 3 giorni).
+- **Sito** (`site/`): landing, privacy, termini, cookie; italiano e inglese, stile MTSolutions, niente cookie né CDN.
+- Chiave dell'updater generata fuori dal repo. Passi per pubblicare in [docs/RELEASE.md](docs/RELEASE.md).
+- Verificato su LPT-MIKI:
+  - conto alla rovescia, annulla e +30 min;
+  - avviso dei 5 minuti;
+  - tasto rapido;
+  - controllo aggiornamenti con il repo privato;
+  - sito in chiaro, scuro e a larghezza telefono;
+  - build firmata e installer (dettagli in `test.md`).
+
 ## 2026-09-22 — 0.0.2: portatili e coperchio chiuso
 
 - **Coperchio chiuso**. Moka cambia per il tempo necessario l'impostazione di Windows "Quando chiudo il coperchio" e la rimette sempre com'era:

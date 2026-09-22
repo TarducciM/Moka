@@ -15,7 +15,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::session::{parse_duration, Mode, Now, Session, Spec, MAX_MINUTES};
+use crate::session::{parse_duration, Mode, Now, Session, Spec, ThenAct, MAX_MINUTES};
 
 pub const DEFAULT_DURATIONS: [u32; 5] = [15, 30, 60, 120, 240];
 pub const MAX_DURATIONS: usize = 6;
@@ -26,6 +26,18 @@ pub const DEFAULT_BACKPACK: u32 = 30;
 /// Soglia batteria in percentuale: sotto, la sessione finisce. 0 = spenta.
 pub const BATTERY_CHOICES: [u32; 8] = [0, 10, 15, 20, 25, 30, 40, 50];
 pub const DEFAULT_BATTERY: u32 = 20;
+/// Tasti rapidi offerti. Niente Ctrl+Alt: sulle tastiere italiane equivale ad
+/// AltGr (trappola 19). Niente Win: Windows se ne riserva quasi tutti.
+/// "" = nessuno.
+pub const SHORTCUT_CHOICES: [&str; 7] = [
+    "",
+    "Ctrl+Shift+F7",
+    "Ctrl+Shift+F8",
+    "Ctrl+Shift+F9",
+    "Ctrl+Shift+F10",
+    "Ctrl+Shift+F11",
+    "Ctrl+Shift+Pause",
+];
 
 /// Tolleranza nel riconoscere lo stesso avvio di Windows: copre le piccole
 /// correzioni dell'orologio (NTP) fra un salvataggio e la rilettura.
@@ -81,6 +93,12 @@ pub struct Settings {
     pub lock_on_lid_open: bool,
     pub backpack_minutes: u32,
     pub battery_threshold: u32,
+    /// Avviso 5 minuti prima della fine di una sessione a tempo.
+    pub warn_before_end: bool,
+    /// Tasto rapido per accendere/spegnere ("" = nessuno).
+    pub shortcut_toggle: String,
+    /// Tasto rapido per spegnere lo schermo ("" = nessuno).
+    pub shortcut_screen_off: String,
 }
 
 impl Default for Settings {
@@ -95,8 +113,20 @@ impl Default for Settings {
             lock_on_lid_open: true,
             backpack_minutes: DEFAULT_BACKPACK,
             battery_threshold: DEFAULT_BATTERY,
+            warn_before_end: true,
+            shortcut_toggle: String::new(),
+            shortcut_screen_off: String::new(),
         }
     }
+}
+
+/// Un tasto rapido accettato solo se è fra quelli offerti.
+pub fn normalize_shortcut(s: &str) -> String {
+    SHORTCUT_CHOICES
+        .iter()
+        .find(|c| c.eq_ignore_ascii_case(s.trim()))
+        .map(|c| (*c).to_owned())
+        .unwrap_or_default()
 }
 
 impl Settings {
@@ -118,7 +148,27 @@ impl Settings {
                 .unwrap_or(d.backpack_minutes),
             battery_threshold: choice(v, "batteryThreshold", &BATTERY_CHOICES)
                 .unwrap_or(d.battery_threshold),
+            warn_before_end: bool_field(v, "warnBeforeEnd").unwrap_or(d.warn_before_end),
+            shortcut_toggle: v
+                .get("shortcutToggle")
+                .and_then(Value::as_str)
+                .map(normalize_shortcut)
+                .unwrap_or_default(),
+            shortcut_screen_off: v
+                .get("shortcutScreenOff")
+                .and_then(Value::as_str)
+                .map(normalize_shortcut)
+                .unwrap_or_default(),
         }
+        .dedup_shortcuts()
+    }
+
+    /// Lo stesso tasto non può fare due cose: il secondo si toglie.
+    pub fn dedup_shortcuts(mut self) -> Settings {
+        if !self.shortcut_toggle.is_empty() && self.shortcut_toggle == self.shortcut_screen_off {
+            self.shortcut_screen_off.clear();
+        }
+        self
     }
 
     /// Il modo del coperchio che vale davvero: finché la domanda non ha avuto
@@ -231,6 +281,15 @@ pub struct Memory {
     pub last_mode: Mode,
     /// Ultima scelta di "anche a coperchio chiuso" nel pannello.
     pub last_lid: bool,
+    /// "…e poi" scelto per la **prossima** sessione. Non resta: finita la
+    /// sessione torna "niente", perché uno "spegni il PC" dimenticato lì
+    /// scatterebbe settimane dopo, a sorpresa.
+    pub next_then: ThenAct,
+    /// Quante volte è partita Moka, e da quando: servono al promemoria stella.
+    pub launches: u32,
+    pub first_seen_wall_ms: i64,
+    pub star_snooze_until_ms: i64,
+    pub star_done: bool,
     /// Ultima durata scelta: la usa l'accensione con un clic.
     pub last_spec: Spec,
     /// Il benvenuto al primo avvio è già stato chiuso.
@@ -243,6 +302,11 @@ impl Default for Memory {
         Memory {
             last_mode: Mode::default(),
             last_lid: true,
+            next_then: ThenAct::None,
+            launches: 0,
+            first_seen_wall_ms: 0,
+            star_snooze_until_ms: 0,
+            star_done: false,
             last_spec: Spec::default(),
             welcome_done: false,
             session: None,
@@ -255,6 +319,21 @@ impl Memory {
         Memory {
             last_mode: field(v, "lastMode").unwrap_or_default(),
             last_lid: bool_field(v, "lastLid").unwrap_or(true),
+            next_then: field(v, "nextThen").unwrap_or_default(),
+            launches: v
+                .get("launches")
+                .and_then(Value::as_u64)
+                .map(|n| n.min(1_000_000) as u32)
+                .unwrap_or(0),
+            first_seen_wall_ms: v
+                .get("firstSeenWallMs")
+                .and_then(Value::as_i64)
+                .unwrap_or(0),
+            star_snooze_until_ms: v
+                .get("starSnoozeUntilMs")
+                .and_then(Value::as_i64)
+                .unwrap_or(0),
+            star_done: bool_field(v, "starDone").unwrap_or(false),
             last_spec: field(v, "lastSpec")
                 .filter(|s| spec_is_valid(*s))
                 .unwrap_or_default(),
@@ -370,6 +449,21 @@ mod tests {
     }
 
     #[test]
+    fn shortcuts_only_from_the_list() {
+        let s = Settings::from_value(&json!({
+            "shortcutToggle": "ctrl+shift+f9",
+            "shortcutScreenOff": "Ctrl+Alt+Canc"
+        }));
+        assert_eq!(s.shortcut_toggle, "Ctrl+Shift+F9");
+        assert_eq!(s.shortcut_screen_off, "", "Ctrl+Alt non è fra le scelte");
+        let s = Settings::from_value(&json!({
+            "shortcutToggle": "Ctrl+Shift+F9",
+            "shortcutScreenOff": "Ctrl+Shift+F9"
+        }));
+        assert_eq!(s.shortcut_screen_off, "", "lo stesso tasto non fa due cose");
+    }
+
+    #[test]
     fn lid_mode_needs_consent() {
         let mut s = Settings {
             lid_mode: LidMode::Always,
@@ -408,6 +502,7 @@ mod tests {
             spec: Spec::Minutes { minutes: 60 },
             started_wall_ms: 1_000_000,
             lid: true,
+            then: ThenAct::Lock,
         }
     }
 
@@ -457,6 +552,11 @@ mod tests {
         let m = Memory {
             last_mode: Mode::Display,
             last_lid: false,
+            next_then: ThenAct::Sleep,
+            launches: 7,
+            first_seen_wall_ms: 123,
+            star_snooze_until_ms: 456,
+            star_done: true,
             last_spec: Spec::Until {
                 hour: 18,
                 minute: 30,

@@ -13,13 +13,15 @@
 //! moka --off                spegne
 //! moka --screen-off         spegne subito lo schermo, il PC resta sveglio
 //! moka --quit               chiude Moka (la sessione finisce)
+//! moka --then sleep         a fine sessione: display-off | lock | sleep | hibernate |
+//!                           shutdown | none (da solo: vale per la sessione in corso)
 //! moka --lid / --no-lid     questa sessione resta accesa (o no) a coperchio chiuso
 //! moka --restore-lid        rimette l'impostazione del coperchio com'era, poi esce
 //! ```
 //!
 //! L'eseguibile è un'app a finestre: niente output sul terminale (trappola 15).
 
-use crate::session::{parse_clock, parse_duration, Mode, Spec};
+use crate::session::{parse_clock, parse_duration, Mode, Spec, ThenAct};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
@@ -31,7 +33,11 @@ pub enum Action {
         spec: Option<Spec>,
         /// `None` = l'ultima scelta fatta nel pannello.
         lid: Option<bool>,
+        /// "…e poi"; `None` = quello scelto nel pannello per la prossima sessione.
+        then: Option<ThenAct>,
     },
+    /// `--then` da solo: cambia il "…e poi" della sessione in corso (o della prossima).
+    SetThen(ThenAct),
     Off,
     Toggle,
     ScreenOff,
@@ -64,6 +70,7 @@ where
     let mut screen = false;
     let mut on = false;
     let mut lid: Option<bool> = None;
+    let mut then: Option<ThenAct> = None;
     let mut explicit: Option<Action> = None;
     let mut from_autostart = false;
     let mut unknown = Vec::new();
@@ -89,6 +96,10 @@ where
             },
             "--until" => match value().as_deref().and_then(parse_clock) {
                 Some((hour, minute)) => spec = Some(Spec::Until { hour, minute }),
+                None => unknown.push(arg.to_owned()),
+            },
+            "--then" => match value().as_deref().and_then(ThenAct::parse) {
+                Some(act) => then = Some(act),
                 None => unknown.push(arg.to_owned()),
             },
             "--forever" => spec = Some(Spec::Never),
@@ -119,8 +130,16 @@ where
     } else {
         None
     };
-    let action = explicit.unwrap_or(if spec.is_some() || screen || on || lid.is_some() {
-        Action::Start { mode, spec, lid }
+    let starts = spec.is_some() || screen || on || lid.is_some();
+    let action = explicit.unwrap_or(if starts {
+        Action::Start {
+            mode,
+            spec,
+            lid,
+            then,
+        }
+    } else if let Some(act) = then {
+        Action::SetThen(act)
     } else {
         Action::None
     });
@@ -156,6 +175,7 @@ mod tests {
                 mode: Some(Mode::System),
                 spec: Some(Spec::Minutes { minutes: 120 }),
                 lid: None,
+                then: None,
             }
         );
         assert_eq!(
@@ -164,6 +184,7 @@ mod tests {
                 mode: Some(Mode::Display),
                 spec: Some(Spec::Minutes { minutes: 90 }),
                 lid: None,
+                then: None,
             }
         );
         assert_eq!(
@@ -175,6 +196,7 @@ mod tests {
                     minute: 30
                 }),
                 lid: None,
+                then: None,
             }
         );
         assert_eq!(
@@ -183,6 +205,7 @@ mod tests {
                 mode: Some(Mode::Display),
                 spec: None,
                 lid: None,
+                then: None,
             }
         );
         assert_eq!(
@@ -191,6 +214,7 @@ mod tests {
                 mode: None,
                 spec: None,
                 lid: None,
+                then: None,
             }
         );
         assert_eq!(
@@ -199,6 +223,7 @@ mod tests {
                 mode: Some(Mode::System),
                 spec: Some(Spec::Never),
                 lid: None,
+                then: None,
             }
         );
     }
@@ -222,7 +247,8 @@ mod tests {
             Action::Start {
                 mode: Some(Mode::System),
                 spec: Some(Spec::Minutes { minutes: 120 }),
-                lid: Some(true)
+                lid: Some(true),
+                then: None,
             }
         );
         assert_eq!(
@@ -230,9 +256,28 @@ mod tests {
             Action::Start {
                 mode: None,
                 spec: None,
-                lid: Some(false)
+                lid: Some(false),
+                then: None,
             }
         );
+    }
+
+    #[test]
+    fn then_flag() {
+        assert_eq!(
+            action(&["--for", "2h", "--then", "sleep"]),
+            Action::Start {
+                mode: Some(Mode::System),
+                spec: Some(Spec::Minutes { minutes: 120 }),
+                lid: None,
+                then: Some(ThenAct::Sleep),
+            }
+        );
+        assert_eq!(
+            action(&["--then=display-off"]),
+            Action::SetThen(ThenAct::ScreenOff)
+        );
+        assert_eq!(parse(["--then", "boom"]).unknown, vec!["--then"]);
     }
 
     #[test]

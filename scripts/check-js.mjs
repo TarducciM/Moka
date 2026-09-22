@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const files = ["src", "scripts", "tests"].flatMap((dir) =>
+const files = ["src", "scripts", "tests", "site"].flatMap((dir) =>
   readdirSync(join(root, dir))
     .filter((f) => f.endsWith(".js") || f.endsWith(".mjs"))
     .map((f) => join(dir, f)),

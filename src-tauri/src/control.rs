@@ -6,9 +6,10 @@
 //! ci passa sempre): le API della tray, chiamate da un altro thread, aspettano
 //! il principale, e un lock tenuto nel frattempo è un deadlock servito.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, WebviewWindowBuilder};
 use tauri_plugin_notification::NotificationExt;
 
 use crate::actions;
@@ -16,7 +17,7 @@ use crate::cli::Action;
 use crate::i18n::{t, tv, Lang};
 use crate::lidplan::Effect;
 use crate::popover;
-use crate::session::{Mode, Spec};
+use crate::session::{Mode, Spec, ThenAct};
 use crate::state::{AppState, Core, Notice};
 use crate::sys;
 use crate::sysevents::SysEvent;
@@ -55,6 +56,7 @@ pub fn run_effects(effects: Vec<Effect>, modern_standby: bool) {
         for effect in effects {
             match effect {
                 Effect::Lock => actions::lock(),
+                Effect::ScreenOff => sys::screen_off(None),
                 Effect::Perform(act) => {
                     if let Err(err) = actions::perform(act, modern_standby) {
                         eprintln!("moka: {act:?} non eseguita: {err}");
@@ -84,8 +86,28 @@ fn show_notices(app: &AppHandle, lang: Lang, notices: Vec<Notice>) {
     }
 }
 
-pub fn start(app: &AppHandle, mode: Option<Mode>, spec: Option<Spec>, lid: Option<bool>) {
-    with_core(app, |c| c.start(mode, spec, lid, sys::now()));
+pub fn start(
+    app: &AppHandle,
+    mode: Option<Mode>,
+    spec: Option<Spec>,
+    lid: Option<bool>,
+    then: Option<ThenAct>,
+) {
+    with_core(app, |c| c.start(mode, spec, lid, then, sys::now()));
+}
+
+/// Registra i tasti rapidi delle impostazioni e ricorda se qualcuno non va.
+pub fn apply_shortcuts(app: &AppHandle) {
+    let (toggle, screen_off) = {
+        let st = app.state::<AppState>();
+        let core = st.core.lock().unwrap();
+        (
+            core.settings.shortcut_toggle.clone(),
+            core.settings.shortcut_screen_off.clone(),
+        )
+    };
+    let error = crate::shortcuts::register(app, &toggle, &screen_off);
+    with_core(app, |c| c.shortcut_error = error);
 }
 
 pub fn stop(app: &AppHandle) {
@@ -147,12 +169,20 @@ pub fn apply_cli(app: &AppHandle, action: Action, from_second_instance: bool) {
                 show_popover_at_tray(app);
             }
         }
-        Action::Start { mode, spec, lid } => start(app, mode, spec, lid),
+        Action::Start {
+            mode,
+            spec,
+            lid,
+            then,
+        } => start(app, mode, spec, lid, then),
         Action::Off => stop(app),
         Action::Toggle => toggle(app),
         Action::ScreenOff => screen_off(app),
         Action::Quit => quit(app),
         Action::Autostart(enable) => set_autostart(app, enable),
+        Action::SetThen(act) => {
+            with_core(app, |c| c.set_then(act, sys::now()));
+        }
         // Gestita in main.rs, prima di avviare Tauri: qui non arriva mai.
         Action::RestoreLid => {}
     }
@@ -198,10 +228,16 @@ pub fn request_refresh(app: &AppHandle, emit: bool) {
 fn refresh(app: &AppHandle, emit: bool) {
     let st = app.state::<AppState>();
     let now = sys::now();
-    let (view, lang, durations) = {
+    let (view, lang, durations, toast) = {
         let core = st.core.lock().unwrap();
-        (core.view(now), core.lang, core.settings.durations.clone())
+        (
+            core.view(now),
+            core.lang,
+            core.settings.durations.clone(),
+            core.toast(now),
+        )
     };
+    sync_toast(app, toast.is_some());
     let Some(tray_icon) = app.tray_by_id(TRAY_ID) else {
         return;
     };
@@ -256,4 +292,68 @@ fn refresh(app: &AppHandle, emit: bool) {
     if emit {
         let _ = app.emit("moka://state", &view.dto);
     }
+}
+
+/// La finestrella degli avvisi ("si spegne tra 5 minuti", il conto alla
+/// rovescia di "…e poi"): si crea quando serve e si chiude quando non serve
+/// più. La crea un thread a parte: dal thread principale, dentro un evento,
+/// la creazione di una finestra va in deadlock su Windows.
+pub const TOAST_LABEL: &str = "toast";
+static TOAST_CREATING: AtomicBool = AtomicBool::new(false);
+
+fn sync_toast(app: &AppHandle, want: bool) {
+    match (want, app.get_webview_window(TOAST_LABEL)) {
+        (true, Some(_)) => {
+            let _ = app.emit_to(TOAST_LABEL, "moka://toast", ());
+        }
+        (true, None) => {
+            if !TOAST_CREATING.swap(true, Ordering::SeqCst) {
+                let app = app.clone();
+                std::thread::spawn(move || {
+                    if let Err(err) = create_toast(&app) {
+                        eprintln!("moka: avviso non mostrato: {err}");
+                    }
+                    TOAST_CREATING.store(false, Ordering::SeqCst);
+                });
+            }
+        }
+        (false, Some(win)) => {
+            let _ = win.close();
+        }
+        (false, None) => {}
+    }
+}
+
+fn create_toast(app: &AppHandle) -> tauri::Result<()> {
+    let config = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|w| w.label == TOAST_LABEL)
+        .cloned()
+        .expect("finestra toast dichiarata in tauri.conf.json");
+    WebviewWindowBuilder::from_config(app, &config)?.build()?;
+    Ok(())
+}
+
+/// In basso a destra del monitor principale, sopra la barra delle
+/// applicazioni, con l'altezza che serve al contenuto.
+pub fn place_toast(app: &AppHandle, content_height: f64) {
+    let Some(win) = app.get_webview_window(TOAST_LABEL) else {
+        return;
+    };
+    let _ = win.set_size(LogicalSize::new(
+        360.0,
+        content_height.clamp(80.0, 400.0).ceil(),
+    ));
+    let Some(monitor) = app.primary_monitor().ok().flatten() else {
+        return;
+    };
+    let Ok(size) = win.outer_size() else { return };
+    let area = monitor.work_area();
+    let margin = (16.0 * monitor.scale_factor()).round() as i32;
+    let x = area.position.x + area.size.width as i32 - size.width as i32 - margin;
+    let y = area.position.y + area.size.height as i32 - size.height as i32 - margin;
+    let _ = win.set_position(PhysicalPosition::new(x, y));
 }

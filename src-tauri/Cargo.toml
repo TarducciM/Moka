@@ -1,6 +1,6 @@
 [package]
 name = "moka"
-version = "0.0.2"
+version = "0.0.3"
 description = "Keep your Windows PC awake from the tray. Local, no telemetry."
 authors = ["Michele Tarducci"]
 license = "MIT"
@@ -22,6 +22,8 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["tray-icon", "image-png"] }
 tauri-plugin-opener = "2"
 tauri-plugin-notification = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-updater = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }

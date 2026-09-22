@@ -110,5 +110,60 @@
   "settings.battery_hint": "Vale solo a batteria. Una sessione avviata con la batteria già sotto la soglia non viene interrotta.",
 
   "notify.battery_title": "Moka si è spenta",
-  "notify.battery_body": "Batteria al {percent}%: il PC torna a comportarsi come sempre."
+  "notify.battery_body": "Batteria al {percent}%: il PC torna a comportarsi come sempre.",
+
+  "then.none": "Niente",
+  "then.screen_off": "Spegni lo schermo",
+  "then.lock": "Blocca il PC",
+  "then.sleep": "Sospendi",
+  "then.hibernate": "Iberna",
+  "then.shutdown": "Arresta il sistema",
+  "then.countdown_screen_off": "Schermo spento tra {s} s",
+  "then.countdown_lock": "Blocco del PC tra {s} s",
+  "then.countdown_sleep": "Sospensione tra {s} s",
+  "then.countdown_hibernate": "Ibernazione tra {s} s",
+  "then.countdown_shutdown": "Arresto del sistema tra {s} s",
+
+  "reason.then": "Moka: {action} fra poco",
+
+  "toast.countdown_body": "La sessione di Moka è finita.",
+  "toast.now": "{action} ora",
+  "toast.cancel": "Annulla",
+  "toast.extend": "+30 min",
+  "toast.ok": "Ok",
+  "toast.warning_title": "Moka si spegne tra {time}",
+  "toast.warning_body": "Poi il PC torna a comportarsi come sempre.",
+  "toast.warning_then": "Poi: {action}.",
+
+  "popover.then": "Poi",
+  "popover.update": "Moka {version} è pronta",
+  "popover.update_install": "Aggiorna",
+  "popover.update_later": "Si aggiorna a sessione spenta",
+  "popover.star_title": "Ti piace Moka?",
+  "popover.star_body": "Una stella su GitHub aiuta altre persone a trovarla.",
+  "popover.star_open": "Metti una stella",
+  "popover.star_later": "Più tardi",
+  "popover.star_never": "Non chiederlo più",
+
+  "update.session_active": "Moka si aggiorna a sessione spenta: la sessione cadrebbe a metà.",
+  "update.none": "Nessun aggiornamento da installare.",
+
+  "settings.warn_before_end": "Avvisa 5 minuti prima della fine",
+  "settings.warn_hint": "Con un pulsante «+30 min». Solo per sessioni più lunghe di 10 minuti.",
+  "settings.section_shortcuts": "Tasti rapidi",
+  "settings.shortcut_toggle": "Accendi o spegni",
+  "settings.shortcut_screen_off": "Spegni lo schermo ora",
+  "settings.shortcut_none": "Nessuno",
+  "settings.shortcut_error": "Non disponibile, lo usa già un'altra app: {keys}",
+  "settings.shortcut_hint": "Funzionano ovunque in Windows.",
+  "settings.section_updates": "Aggiornamenti",
+  "settings.update_check": "Cerca aggiornamenti",
+  "settings.update_checking": "Controllo in corso…",
+  "settings.update_none": "Hai già l'ultima versione.",
+  "settings.update_available": "È disponibile Moka {version}.",
+  "settings.update_install": "Installa e riavvia",
+  "settings.update_error": "Controllo non riuscito: {error}",
+  "settings.update_hint": "Moka controlla da sola una volta al giorno: è l'unico momento in cui si collega a Internet.",
+
+  "keys.shift": "Maiusc"
 }

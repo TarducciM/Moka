@@ -105,10 +105,13 @@ impl LidAct {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Effect {
-    /// Il coperchio si è riaperto dopo che Moka l'aveva tenuto acceso.
+    /// Il coperchio si è riaperto dopo che Moka l'aveva tenuto acceso; oppure
+    /// "…e poi: blocca".
     Lock,
-    /// Fare ciò che Windows avrebbe fatto.
+    /// Fare ciò che Windows avrebbe fatto (o "…e poi": sospendi, iberna, arresta).
     Perform(LidAct),
+    /// "…e poi: spegni lo schermo".
+    ScreenOff,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -224,6 +227,14 @@ impl Tracker {
         self.closed = w.closed;
         self.prev_effective = Some(eff);
         out
+    }
+
+    /// Un "…e poi" vince su ciò che Windows avrebbe fatto: la sua azione
+    /// arriva al posto di questa, non in aggiunta.
+    pub fn cancel_released(&mut self) {
+        if matches!(self.pending, Some(p) if p.why == Why::Released) {
+            self.pending = None;
+        }
     }
 
     /// Quando richiamare [`Tracker::update`] anche se non succede niente.

@@ -162,6 +162,22 @@ pub fn tooltip(lang: Lang, session: Option<&Session>, now: Now, lid_held: bool) 
     }
 }
 
+/// "Sospendi", "Blocca il PC"… per un "…e poi".
+pub fn then_label(lang: Lang, act: crate::session::ThenAct) -> String {
+    use crate::session::ThenAct;
+    t(
+        lang,
+        match act {
+            ThenAct::None => "then.none",
+            ThenAct::ScreenOff => "then.screen_off",
+            ThenAct::Lock => "then.lock",
+            ThenAct::Sleep => "then.sleep",
+            ThenAct::Hibernate => "then.hibernate",
+            ThenAct::Shutdown => "then.shutdown",
+        },
+    )
+}
+
 /// "Sospendi", "Iberna"… per un valore dell'azione del coperchio.
 pub fn lid_action_label(lang: Lang, value: u32) -> String {
     t(

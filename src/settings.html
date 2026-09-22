@@ -44,6 +44,13 @@
           </label>
           <small data-i18n="settings.left_click_hint"></small>
         </div>
+        <div class="field">
+          <label class="field-text" for="warn-before-end">
+            <span data-i18n="settings.warn_before_end"></span>
+            <small data-i18n="settings.warn_hint"></small>
+          </label>
+          <input type="checkbox" id="warn-before-end" />
+        </div>
       </section>
 
       <section class="card" id="lid-card" hidden aria-labelledby="lid-title">
@@ -114,6 +121,30 @@
         />
         <p class="hint" id="durations-hint" data-i18n="settings.durations_hint"></p>
         <p class="error" id="durations-error" role="alert" hidden></p>
+      </section>
+
+      <section class="card" aria-labelledby="shortcuts-title">
+        <h2 id="shortcuts-title" data-i18n="settings.section_shortcuts"></h2>
+        <div class="field">
+          <label for="shortcut-toggle" data-i18n="settings.shortcut_toggle"></label>
+          <select id="shortcut-toggle"></select>
+        </div>
+        <div class="field">
+          <label for="shortcut-screen-off" data-i18n="settings.shortcut_screen_off"></label>
+          <select id="shortcut-screen-off"></select>
+        </div>
+        <p class="hint" data-i18n="settings.shortcut_hint"></p>
+        <p class="error" id="shortcut-error" role="alert" hidden></p>
+      </section>
+
+      <section class="card" aria-labelledby="updates-title">
+        <h2 id="updates-title" data-i18n="settings.section_updates"></h2>
+        <p class="hint" data-i18n="settings.update_hint"></p>
+        <div class="card-actions">
+          <button type="button" class="btn btn-small" id="update-check" data-i18n="settings.update_check"></button>
+          <button type="button" class="btn btn-small btn-accent" id="update-install" data-i18n="settings.update_install" hidden></button>
+        </div>
+        <p class="notice" id="update-status" role="status" hidden></p>
       </section>
 
       <section class="card" aria-labelledby="check-title">

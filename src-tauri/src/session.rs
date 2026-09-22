@@ -26,6 +26,44 @@ pub enum Mode {
     Display,
 }
 
+/// "…e poi": cosa fare alla fine di una sessione a tempo. Parte sempre dopo
+/// un conto alla rovescia annullabile, mai subito.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum ThenAct {
+    #[default]
+    None,
+    ScreenOff,
+    Lock,
+    Sleep,
+    Hibernate,
+    Shutdown,
+}
+
+impl ThenAct {
+    pub const ALL: [ThenAct; 6] = [
+        ThenAct::None,
+        ThenAct::ScreenOff,
+        ThenAct::Lock,
+        ThenAct::Sleep,
+        ThenAct::Hibernate,
+        ThenAct::Shutdown,
+    ];
+
+    /// I nomi della riga di comando (`--then sleep`).
+    pub fn parse(text: &str) -> Option<ThenAct> {
+        match text.trim().to_lowercase().as_str() {
+            "none" | "nothing" => Some(ThenAct::None),
+            "display-off" | "screen-off" => Some(ThenAct::ScreenOff),
+            "lock" => Some(ThenAct::Lock),
+            "sleep" | "suspend" => Some(ThenAct::Sleep),
+            "hibernate" => Some(ThenAct::Hibernate),
+            "shutdown" => Some(ThenAct::Shutdown),
+            _ => None,
+        }
+    }
+}
+
 /// Un istante letto dai due orologi.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Now {
@@ -86,6 +124,9 @@ pub struct Session {
     /// acconsentito: vedi `Settings::effective_lid_mode`).
     #[serde(default)]
     pub lid: bool,
+    /// "…e poi" per questa sessione.
+    #[serde(default)]
+    pub then: ThenAct,
 }
 
 impl Session {
@@ -111,6 +152,7 @@ impl Session {
             spec,
             started_wall_ms: now.wall_ms,
             lid: false,
+            then: ThenAct::None,
         }
     }
 
@@ -125,6 +167,44 @@ impl Session {
 
     pub fn is_expired(&self, now: Now) -> bool {
         self.remaining_ms(now) == Some(0)
+    }
+
+    /// Da quanto è scaduta. Il timer controlla almeno ogni 15 s mentre il PC è
+    /// sveglio, quindi un ritardo molto più lungo vuol dire che nel frattempo
+    /// il PC ha dormito (coperchio chiuso, tasto di accensione).
+    pub fn overdue_ms(&self, now: Now) -> u64 {
+        match self.end {
+            End::Never => 0,
+            End::AfterTick { at_tick_ms, .. } => now.tick_ms.saturating_sub(at_tick_ms),
+            End::AtWall { at_wall_ms } => (now.wall_ms - at_wall_ms).max(0) as u64,
+        }
+    }
+
+    /// La durata complessiva, se ne ha una.
+    pub fn total_ms(&self) -> Option<u64> {
+        match self.end {
+            End::Never => None,
+            End::AfterTick { total_ms, .. } => Some(total_ms),
+            End::AtWall { at_wall_ms } => Some((at_wall_ms - self.started_wall_ms).max(0) as u64),
+        }
+    }
+
+    /// "+30 min": allunga la scadenza (a partire da adesso, se è già passata).
+    pub fn extend(&mut self, minutes: u32, now: Now) {
+        let add = u64::from(minutes) * 60_000;
+        match &mut self.end {
+            End::Never => {}
+            End::AfterTick {
+                at_tick_ms,
+                total_ms,
+            } => {
+                *at_tick_ms = (*at_tick_ms).max(now.tick_ms) + add;
+                *total_ms += add;
+            }
+            End::AtWall { at_wall_ms } => {
+                *at_wall_ms = (*at_wall_ms).max(now.wall_ms) + add as i64;
+            }
+        }
     }
 
     /// L'istante di fine sull'orologio di sistema, se esiste: serve per dire
@@ -386,6 +466,38 @@ mod tests {
         ] {
             assert_eq!(parse_clock(bad), None, "{bad:?} doveva essere rifiutato");
         }
+    }
+
+    #[test]
+    fn extend_and_overdue() {
+        let mut s = Session::start(
+            Mode::System,
+            Spec::Minutes { minutes: 60 },
+            now(0, WALL_1400),
+            &rome_summer(),
+        );
+        // Mancano 5 minuti: +30 li porta a 35.
+        let t = now(55 * 60_000, WALL_1400 + 55 * 60_000);
+        s.extend(30, t);
+        assert_eq!(s.remaining_ms(t), Some(35 * 60_000));
+        assert_eq!(s.total_ms(), Some(90 * 60_000));
+        // Scaduta da 2 ore (il PC dormiva): il ritardo lo dice.
+        let late = now(90 * 60_000 + 7_200_000, WALL_1400);
+        assert!(s.is_expired(late));
+        assert_eq!(s.overdue_ms(late), 7_200_000);
+        // +30 su una sessione già scaduta parte da adesso, non dal passato.
+        s.extend(30, late);
+        assert_eq!(s.remaining_ms(late), Some(30 * 60_000));
+    }
+
+    #[test]
+    fn then_names() {
+        assert_eq!(ThenAct::parse("sleep"), Some(ThenAct::Sleep));
+        assert_eq!(ThenAct::parse("display-off"), Some(ThenAct::ScreenOff));
+        assert_eq!(ThenAct::parse(" Shutdown "), Some(ThenAct::Shutdown));
+        assert_eq!(ThenAct::parse("explode"), None);
+        let json = serde_json::to_string(&ThenAct::ScreenOff).unwrap();
+        assert_eq!(json, "\"screen-off\"");
     }
 
     #[test]
