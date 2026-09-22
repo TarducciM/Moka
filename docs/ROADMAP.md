@@ -646,11 +646,12 @@ Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
 
 - DNS e hosting di `moka.mtsolutions.studio`, come per gli altri progetti.
 - Voce nella sezione "Progetti open source" della home di mtsolutions.studio, con l'icona.
-- Anteprima locale del sito: porta 4712, dopo la 4710 e la 4711 già usate per i siti di MD-Viewer e ClipVault.
+- Anteprima locale del sito: la porta si prende dal registro del mega-repo (`MTSolutions/docs/ports.json`, range dei siti 4400–4499) quando il sito esiste. Il piano iniziale diceva 4712, dopo la 4710 e la 4711 dei siti di MD-Viewer e ClipVault, ma quelle stanno fuori dal registro.
 
 ## Convenzioni del repo
 
 - Branch `main`. Dopo la pubblicazione: branch `feature/<slug>` e PR.
+- Dal 2026-09-22 Moka è un **submodule del mega-repo MTSolutions** (`MTSolutions/Moka`), pur restando un repo personale (`TarducciM/Moka`, niente prefisso `app-`, niente organizzazione). Il mega-repo tiene un commit preciso, non un ramo: dopo un push qui, il puntatore lassù si aggiorna a parte, con una PR sul mega-repo.
 - Commit in italiano, descrittivi, senza trailer di co-autore.
 - `CHANGELOG.md` datato a ogni passaggio significativo, versione bumpata insieme.
 - README bilingue IT/EN, come ClipVault e MD-Viewer.
