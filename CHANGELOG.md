@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-09-22 — 0.0.1: il nucleo, la CI, lo strumento per lo spike
+
+- Pianificazione chiusa: decisioni prese in [docs/ROADMAP.md](docs/ROADMAP.md) ("Decisioni prese scrivendo il codice"). Le principali:
+  - il clic sinistro apre il pannello (configurabile);
+  - la scelta "Solo il PC / PC e schermo" resta da una sessione all'altra, niente impostazione a parte;
+  - la riga di comando anticipata alla 0.1;
+  - la sessione riprende dopo un riavvio dell'app, non dopo un riavvio del PC né dopo un nuovo accesso.
+- Check sulla macchina LPT-MIKI, un portatile con standby moderno: proprio il caso difficile. Scoperte:
+  - l'azione del coperchio è nascosta (`powercfg /qh`, non `/q`);
+  - si scrive senza elevazione;
+  - lo stato di esecuzione del sistema si legge senza amministratore e rivela le richieste attive.
+- Codice (Tauri 2, Rust, HTML/CSS/JS scritti a mano):
+  - richieste di alimentazione con motivo leggibile;
+  - sessioni a durata, fino alle HH:MM, per sempre;
+  - "spegni lo schermo ora";
+  - icona nella tray con tre stati, due varianti per barra chiara e scura (cambio al volo) e sei dimensioni (a 16 px disegnata pixel per pixel);
+  - menu del clic destro;
+  - pannello accanto all'icona;
+  - Impostazioni create solo quando servono;
+  - italiano e inglese da un'unica fonte;
+  - riga di comando.
+- Verificato sulla macchina (dettagli in `test.md`):
+  - la riga di comando arriva all'istanza aperta;
+  - le sessioni scadono da sole;
+  - la richiesta sparisce se Moka viene chiusa a forza, e la sessione riprende alla riapertura;
+  - `--quit`;
+  - Impostazioni, lingua;
+  - contrasti misurati in chiaro e scuro.
+- Test: 29 in Rust, uno dei quali crea e rilascia una richiesta di alimentazione vera; 5 sulle traduzioni. Controlli su sintassi JS e versioni allineate.
+- CI su GitHub Actions: Rust su Windows, pagine su Linux, `concurrency` fuori da `main`. Workflow manuale `build` per gli installer.
+- Strumento per lo spike sullo standby moderno (`src-tauri/examples/spike.rs`) e procedura in [docs/SPIKE.md](docs/SPIKE.md). Manca l'esecuzione: serve qualcuno che chiuda il coperchio.
+
 ## 2026-09-21 — Coperchio chiuso come funzione di punta
 
 - Il coperchio chiuso passa da funzione avanzata (0.4) a funzione di punta, con una tappa tutta sua (0.2) subito dopo il nucleo. La prima release pubblica slitta di conseguenza alla 0.3.

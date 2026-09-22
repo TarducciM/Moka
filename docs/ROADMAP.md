@@ -1,10 +1,10 @@
 # Moka — piano di progetto
 
-> **Stato: progettazione.** Non c'è ancora una riga di codice.
+> **Stato: sviluppo, 0.0.1.** Il nucleo della 0.1 è scritto e verificato su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md).
 >
 > Questo file è il punto di ripresa: chi riprende il lavoro, da qualunque PC, parte da qui. Va aggiornato a ogni passaggio significativo, insieme a `CHANGELOG.md`.
 >
-> Ultimo aggiornamento: 2026-09-21.
+> Ultimo aggiornamento: 2026-09-22.
 
 ## In una riga
 
@@ -30,17 +30,20 @@ Serve un PC Windows con la toolchain Tauri. **Il primo comando è `hostname`**, 
    hostname && cargo --version && rustc --version && node --version
    ```
 
-2. Generare lo scheletro nella root di questo repo, template **vanilla** (niente framework), con npm:
+2. Installare e provare:
 
    ```bash
-   npm create tauri-app@latest
+   npm install
+   npm run dev                                   # Moka in modalità sviluppo
+   cargo test --manifest-path src-tauri/Cargo.toml
+   npm run check                                 # sintassi JS e traduzioni
    ```
 
-   Nome `moka`, identifier `com.moka.app`. Poi allinearlo a ClipVault: `src/` servito così com'è, `frontendDist: "../src"`, `withGlobalTauri: true`, nessun bundler.
+   Lo scheletro è Tauri 2 **vanilla**, allineato a ClipVault: `src/` servito così com'è (`frontendDist: "../src"`), `withGlobalTauri: true`, nessun bundler. Le icone si rigenerano con `npm run icons` (vedi `scripts/icons.mjs`).
 
-3. Primo obiettivo: la **0.1.0** (vedi la roadmap), verificata come descritto in "Cosa conta come fatto".
+3. Prossimo obiettivo: chiudere la **0.1.0**. Mancano lo spike (`docs/SPIKE.md`) e le righe aperte di `test.md`.
 
-4. Per lo spike sullo standby moderno e per la 0.2 serve un **portatile**. Per sapere che tipo è:
+4. Per lo spike e per la 0.2 serve un **portatile**. Per sapere che tipo è:
 
    ```bash
    powercfg /a
@@ -51,6 +54,7 @@ Serve un PC Windows con la toolchain Tauri. **Il primo comando è `hostname`**, 
 | Data | Macchina (`hostname`) | Rust | Cosa è stato fatto |
 |---|---|---|---|
 | 2026-09-21 | PC-MIKY | no | solo progettazione, nessun codice |
+| 2026-09-22 | LPT-MIKI (Acer Nitro ANV16S-41, portatile, standby moderno connesso, niente S3) | 1.98, MSVC, VS Build Tools 2022, Node 24, WebView2 153 | pianificazione chiusa, check della macchina, nucleo della 0.1, CI, strumento per lo spike |
 
 ---
 
@@ -72,6 +76,47 @@ Serve un PC Windows con la toolchain Tauri. **Il primo comando è `hostname`**, 
 | Privacy | Titolare San Marino Games S.r.l., come gli altri progetti; contatto `info@mtsolutions.studio` |
 | Dati | Tutto locale: nessun account, nessun cloud, nessuna telemetria. L'unica chiamata di rete è il controllo aggiornamenti su GitHub. |
 
+### Decisioni prese scrivendo il codice (2026-09-22)
+
+| Tema | Decisione |
+|---|---|
+| Identifier | `com.moka.app` resta: è coerente con `com.clipvault.app`. Il CLI di Tauri potrebbe avvisare per il suffisso `.app` (conflitto con i bundle macOS): su un'app solo Windows è innocuo. |
+| Clic sinistro | **Apre il pannello** di default, perché è la cosa che si scopre da soli. Chi preferisce il comportamento alla Caffeine lo cambia in Impostazioni ("accende o spegne con l'ultima scelta"). Il clic destro apre sempre il menu completo. |
+| Modalità predefinita | Niente impostazione a parte: la scelta "Solo il PC / PC e schermo" del pannello **resta** fra una sessione e l'altra, ed è quella la predefinita. Due concetti per la stessa cosa confondevano. |
+| Riga di comando | Anticipata alla 0.1 (è logica pura, e passa già dal single-instance): `--for`, `--until`, `--forever`, `--screen`, `--on`, `--toggle`, `--off`, `--screen-off`, `--quit`. Restano per dopo `--while*` (0.4), `--then` (0.3), `--lid` e `--restore-lid` (0.2). Negli script `--for 2h` senza `--screen` vuol dire sempre "solo il PC", qualunque cosa sia stata cliccata l'ultima volta nel pannello. |
+| "Spegni lo schermo ora" senza sessione | Parte una sessione "solo il PC" **finché non lo spegni**: chi spegne lo schermo e se ne va non sa quando tornerà. Con una sessione "PC e schermo" in corso, questa passa a "solo il PC", altrimenti lo schermo si riaccenderebbe e resterebbe acceso. |
+| Ripresa della sessione | Dopo un riavvio **dell'app** sì; dopo un riavvio del PC o un nuovo accesso no. Si riconosce con due controlli insieme: lo stesso avvio di Windows (tick e orologio) **e** la stessa sessione di accesso (LUID del token). Il secondo serve per l'avvio rapido: "Arresta il sistema" non riavvia il kernel, e il tick continua a contare. "Esci" chiude la sessione per davvero. |
+| Impostazioni | La finestra si crea solo quando si apre e si distrugge alla chiusura: una WebView2 costa decine di MB e Moka passa quasi tutto il tempo con le Impostazioni chiuse. Salvataggio immediato, campo per campo, senza pulsante "Salva". |
+| Testi | Una sola fonte: `src/locales/{it,en}.json`, inclusi da Rust (menu, tooltip, motivo della richiesta) e letti dalle pagine. Il pannello non calcola niente: riceve da Rust i testi già tradotti e formattati. |
+| Icona della tray | A 16 px (scala 100%) è disegnata pixel per pixel: il disegno vettoriale lì si impastava (vapore illeggibile, foro del manico sparito). Da 20 px in su è il vettoriale. |
+| Durate | Da 1 minuto a 7 giorni. Si scrivono come `45m`, `2h`, `1h30m`, `1.5h`, `90`. |
+| WebView2 senza GPU | `--disable-gpu` nelle finestre di Moka. Il pannello è statico e non ha bisogno dell'accelerazione, mentre il processo GPU di WebView2 pesava 73 MB privati a riposo; senza, 14 MB. Il pannello si disegna identico (verificato con uno screenshot della build di release). |
+
+**Misure della build di release 0.0.1** (LPT-MIKI, 2026-09-22):
+
+- eseguibile 3,5 MB; installer NSIS 1,3 MB; MSI 1,8 MB;
+- memoria privata a riposo: `moka.exe` 5 MB più WebView2 103 MB in 6 processi (erano 159 con la GPU).
+
+WebView2 resta la voce più pesante. Due strade da valutare, in quest'ordine:
+
+1. abbassare la memoria del pannello quando è nascosto (`MemoryUsageTargetLevel` di WebView2);
+2. creare il pannello solo quando si apre, come già le Impostazioni, al prezzo di qualche decimo di secondo alla prima apertura.
+
+---
+
+## Verifiche su LPT-MIKI (2026-09-22)
+
+Il "check veloce" prima di scrivere codice, fatto sulla macchina e non a memoria. Ogni riga dice come ripeterla.
+
+| Cosa | Risultato | Come si ripete |
+|---|---|---|
+| Tipo di PC | Portatile, standby moderno **connesso alla rete**, S3 non disponibile (anche Device Guard lo disattiva), ibernazione sì | `powercfg /a`, oppure `spike info` |
+| Azione del coperchio | "Sospendi" in carica e a batteria. ⚠️ L'impostazione è **nascosta** (`ATTRIB_HIDE`): `powercfg /q` non la mostra affatto, serve `powercfg /qh` (vedi trappola 31) | `powercfg /qh SCHEME_CURRENT SUB_BUTTONS LIDACTION` |
+| Criteri aziendali | Nessuno sul coperchio: `PowerSettingAccessCheck` dà via libera | `spike info` |
+| Scrivere l'azione del coperchio senza amministratore | **Funziona** su questo account (amministratore con token non elevato). Su un account standard vero resta da provare | `spike lid-write-check` (riscrive il valore che c'è già: non cambia niente) |
+| Vedere le richieste senza amministratore | **Si può**: `CallNtPowerInformation(SystemExecutionState)` riflette le richieste attive (0x0 → 0x3 con SYSTEM+DISPLAY → 0x0 al rilascio). Quindi "Moka tiene davvero sveglio il PC" si verifica anche senza `powercfg /requests` | `spike info` |
+| Moka 0.0.1 in funzione | CLI inoltrata all'istanza aperta, scadenza, rilascio dopo chiusura forzata, ripresa, `--quit`, Impostazioni, lingua, contrasti: tutto in `test.md` | `test.md` |
+
 ---
 
 ## Cosa fa
@@ -83,6 +128,8 @@ Serve un PC Windows con la toolchain Tauri. **Il primo comando è `hostname`**, 
 | **PC acceso** | Niente sospensione; lo schermo segue il piano energetico | `PowerRequestSystemRequired` |
 | **PC e schermo accesi** | Niente sospensione né spegnimento dello schermo | `PowerRequestSystemRequired` + `PowerRequestDisplayRequired` |
 | **Spegni schermo ora** | Monitor spento subito, PC sveglio | `SC_MONITORPOWER` (valore 2) + `PowerRequestSystemRequired` |
+
+⚠️ "Spegni schermo ora" è proprio "schermo spento, PC sveglio": sui portatili con standby moderno è lo stesso rischio del coperchio chiuso. Nella 0.0.1 usa `SystemRequired` come le altre; **quali richieste servano davvero lo decide lo spike** (prove A–C in `docs/SPIKE.md`), e finché non c'è l'esito non va promesso nel README.
 
 Durate: 15 min · 30 min · 1 h · 2 h · 4 h · fino alle HH:MM · finché non lo spengo. La lista è personalizzabile.
 
@@ -148,21 +195,32 @@ Funzione di punta: ha una sezione tutta sua, [più sotto](#portatili-coperchio-c
 
 ### Riga di comando
 
+Già nella 0.0.1 (`src-tauri/src/cli.rs`):
+
 ```text
-moka                      apre il popover
-moka --for 2h             sveglio per 2 ore (accetta anche 90m, 1h30m)
-moka --until 18:30        fino alle 18:30
+moka                      apre il pannello
+moka --for 2h             sveglio per 2 ore (accetta anche 90m, 1h30m, 1.5h)
+moka --until 18:30        fino alle 18:30 (anche 18.30)
+moka --forever            finché non lo spengo
 moka --screen             anche lo schermo (si combina con le altre)
-moka --while-pid 1234     finché il processo 1234 è vivo
-moka --while ffmpeg.exe   finché un processo con quel nome è aperto
-moka --then sleep         a fine sessione: display-off | lock | sleep | hibernate | shutdown
+moka --on                 accende con l'ultima scelta fatta nel pannello
+moka --toggle             accende o spegne
 moka --off                termina la sessione
 moka --screen-off         spegne subito lo schermo
-moka --lid / --no-lid     questa sessione resta accesa (o no) a coperchio chiuso
-moka --restore-lid        rimette l'impostazione del coperchio com'era, poi esce
+moka --quit               chiude Moka
 ```
 
-Gli argomenti arrivano all'istanza già aperta tramite il plugin single-instance, come fa ClipVault con `--enable-autostart`. I comandi non restituiscono output ("spara e dimentica", vedi trappola 15). Anche da riga di comando `--then shutdown` passa dal conto alla rovescia.
+Più avanti:
+
+```text
+moka --while-pid 1234     finché il processo 1234 è vivo                 (0.4)
+moka --while ffmpeg.exe   finché un processo con quel nome è aperto       (0.4)
+moka --then sleep         a fine sessione: display-off | lock | sleep | hibernate | shutdown   (0.3)
+moka --lid / --no-lid     questa sessione resta accesa (o no) a coperchio chiuso            (0.2)
+moka --restore-lid        rimette l'impostazione del coperchio com'era, poi esce            (0.2)
+```
+
+Gli argomenti arrivano all'istanza già aperta tramite il plugin single-instance, come fa ClipVault con `--enable-autostart` (che Moka accetta già, insieme a `--disable-autostart`, per l'installer della 0.3). I comandi non restituiscono output ("spara e dimentica", vedi trappola 15). Anche da riga di comando `--then shutdown` passa dal conto alla rovescia.
 
 ---
 
@@ -298,7 +356,7 @@ Serve un **portatile vero**: né un fisso né un emulatore possono dimostrare ni
 |---|---|
 | Sessione in carica, coperchio chiuso 30 min, nessun monitor | Nessun buco nel log a 10 s, ping continuo, download avanzato |
 | Stessa cosa a batteria, con "anche a batteria" | Idem, e la protezione zaino sospende dopo il tempo scelto |
-| Fine sessione a coperchio chiuso | Il PC si sospende (buco nel log da lì in poi); `powercfg /q SCHEME_CURRENT SUB_BUTTONS LIDACTION` è tornato al valore originale |
+| Fine sessione a coperchio chiuso | Il PC si sospende (buco nel log da lì in poi); `powercfg /qh SCHEME_CURRENT SUB_BUTTONS LIDACTION` è tornato al valore originale (`/qh`, non `/q`: vedi trappola 31) |
 | Alimentatore staccato a coperchio chiuso, con "solo se è in carica" | Il PC si sospende |
 | Modalità scrivania: monitor collegato, coperchio chiuso, poi monitor scollegato | Resta acceso finché c'è il monitor, poi si sospende |
 | Moka chiusa a forza da Task Manager a modifica attiva, poi riaperta | Impostazione ripristinata all'avvio |
@@ -325,7 +383,8 @@ Serve un **portatile vero**: né un fisso né un emulatore possono dimostrare ni
 └────────────────────────────────┘
 ```
 
-- **Tray**: clic sinistro accende o spegne con l'ultima modalità usata, clic destro apre il menu completo (durate, modalità, regole, Impostazioni, Esci). Il tooltip mostra lo stato e il tempo residuo.
+- **Tray**: clic sinistro apre il pannello (in Impostazioni si può fargli accendere e spegnere con l'ultima scelta), clic destro apre il menu completo (durate, modalità, regole, Impostazioni, Esci). Il tooltip mostra lo stato e il tempo residuo.
+- **Primo avvio**: Windows 11 mette le icone nuove fra quelle nascoste (^). Il pannello si apre da solo con un benvenuto che lo dice e spiega come portare l'icona sulla barra; resta finché non si preme "Ho capito".
 - **Icona**: una moka stilizzata, SVG disegnato a mano. Tre stati: spenta (contorno), PC acceso (piena), PC e schermo accesi (piena, con vapore). Serve una variante per la barra chiara e una per quella scura. **Va provata a 16 px prima di disegnare il resto.**
 - **Grafica**: font di sistema, grigi neutri, un solo colore d'accento, niente emoji nell'interfaccia. Segue il tema chiaro/scuro di Windows.
   - Accento proposto: `#8B5A2B` (marrone caffè), 5,8:1 su bianco.
@@ -351,18 +410,20 @@ Ogni passaggio: bump di patch più voce nel `CHANGELOG`. Minor alle tappe qui so
 
 ### 0.1.0 — fa il suo mestiere
 
-- [ ] Scheletro Tauri 2 vanilla, identifier `com.moka.app`
-- [ ] `power.rs`: richieste di alimentazione con motivo leggibile
-- [ ] Le tre modalità; durate, "fino alle", "per sempre"
-- [ ] Icona nella tray con tre stati e varianti chiara/scura, tooltip con tempo residuo
-- [ ] Popover (finestra dichiarata in `tauri.conf.json`; chiuderla la nasconde)
-- [ ] Impostazioni: avvio automatico, lingua, durate predefinite
-- [ ] Single-instance
-- [ ] i18n IT/EN, con controllo automatico delle chiavi
-- [ ] Sessione salvata su disco e ripresa dopo un riavvio dell'app (**non** dopo un riavvio del PC: si riconosce confrontando l'uptime)
-- [ ] CI (`fmt`, `clippy -D warnings`, `test`)
-- [ ] `test.md` con la verifica su un PC vero
-- [ ] **Spike standby moderno** su un portatile vero (vedi la sezione sul coperchio): a schermo spento, quali richieste tengono davvero sveglio il PC. È il presupposto della 0.2, e il suo esito va scritto qui prima di andare avanti.
+- [x] Scheletro Tauri 2 vanilla, identifier `com.moka.app`
+- [x] `power.rs`: richieste di alimentazione con motivo leggibile
+- [x] Le tre modalità; durate, "fino alle", "per sempre" (la terza, "spegni lo schermo ora", aspetta l'esito dello spike per i portatili con standby moderno)
+- [x] Icona nella tray con tre stati e varianti chiara/scura (cambio al volo, senza polling), sei dimensioni scelte secondo i DPI, tooltip con tempo residuo
+- [x] Pannello (finestra dichiarata in `tauri.conf.json`; chiuderla la nasconde; altezza adattata al contenuto; accanto all'icona, dentro l'area di lavoro)
+- [x] Menu del clic destro
+- [x] Impostazioni: avvio automatico, lingua, clic sull'icona, durate rapide
+- [x] Single-instance, con la riga di comando (anticipata dalla 0.3)
+- [x] i18n IT/EN, con controllo automatico delle chiavi (`tests/i18n.test.mjs`)
+- [x] Sessione salvata su disco e ripresa dopo un riavvio dell'app, **non** dopo un riavvio del PC o un nuovo accesso
+- [x] CI (`fmt`, `clippy -D warnings`, `test` su Windows; sintassi JS, traduzioni, versioni allineate e audit su Linux)
+- [x] `test.md` con la verifica su un PC vero (parziale: le righe aperte vogliono le mani sul PC)
+- [ ] **Spike standby moderno** su un portatile vero: strumento pronto (`src-tauri/examples/spike.rs`), procedura in `docs/SPIKE.md`. Serve una persona davanti al portatile. È il presupposto della 0.2, e il suo esito va scritto qui prima di andare avanti.
+- [ ] Le righe aperte di `test.md`
 
 ### 0.2.0 — portatili e coperchio chiuso
 
@@ -385,8 +446,8 @@ Ogni passaggio: bump di patch più voce nel `CHANGELOG`. Minor alle tappe qui so
 - [ ] "…e poi" con conto alla rovescia
 - [ ] Notifica 5 minuti prima della fine con "+30 min" (vedi trappola 20)
 - [ ] Tasti rapidi globali (accendi/spegni, spegni schermo ora), scelti da una lista di combinazioni sicure, **niente Ctrl+Alt** (trappola 19)
-- [ ] Riga di comando
-- [ ] Installer NSIS + MSI + portable: pagina "Attività aggiuntive" per l'avvio automatico, e `--restore-lid` alla disinstallazione
+- [ ] Riga di comando: `--then` (il resto è già nella 0.1)
+- [ ] Installer NSIS + MSI + portable (oggi c'è già il workflow manuale `build`, senza firma né aggiornamenti): pagina "Attività aggiuntive" per l'avvio automatico, e `--restore-lid` alla disinstallazione
 - [ ] Auto-update firmato
 - [ ] Promemoria stella GitHub
 - [ ] `site/` con index, privacy, terms, cookie policy
@@ -415,34 +476,52 @@ Ogni passaggio: bump di patch più voce nel `CHANGELOG`. Minor alle tappe qui so
 
 ## Architettura
 
+Com'è oggi (0.0.1); fra parentesi ciò che arriva dopo.
+
 ```text
 src-tauri/src/
-  main.rs        avvio
-  lib.rs         builder Tauri, plugin, tray, comandi
-  power.rs       wrapper su PowerCreateRequest / PowerSetRequest / PowerClearRequest
-  session.rs     macchina a stati pura, orologio iniettato (testabile)
-  triggers/      una regola per file, trait comune
-  presence.rs    F15 via SendInput
-  actions.rs     schermo spento, blocco, sospensione, ibernazione, spegnimento
-  lid.rs         azione del coperchio: lettura, modifica, registro, ripristino
-  sysevents.rs   finestra nascosta con le notifiche di sistema (coperchio,
-                 alimentazione, batteria, monitor, piano energetico)
-  capabilities.rs  portatile? standby moderno? ibernazione disponibile?
-  cli.rs         parsing degli argomenti (anche quelli inoltrati dal single-instance)
-  settings.rs    JSON in %APPDATA%, normalizzato in lettura
+  main.rs          avvio
+  lib.rs           builder Tauri, plugin, tray, menu, timer
+  state.rs         stato dell'app dietro un Mutex; ogni modifica passa da apply()
+                   (richiesta di alimentazione + state.json, mai uno senza l'altro)
+  control.rs       le azioni, condivise da pannello, menu, clic e riga di comando;
+                   tray e menu si ridisegnano solo sul thread principale
+  commands.rs      i comandi invoke delle pagine
+  popover.rs       posizione accanto all'icona, apertura/chiusura, altezza
+  tray.rs          icone (3 stati × 2 barre × 6 dimensioni) e menu
+  power.rs         PowerCreateRequest / PowerSetRequest / PowerClearRequest
+  session.rs       sessione e durate: logica pura, orologio iniettato (testabile)
+  settings.rs      settings.json e state.json, letti come ostili, scritti in modo atomico
+  i18n.rs          testi da src/locales/*.json, inclusi in compilazione
+  cli.rs           parsing degli argomenti (anche quelli inoltrati dal single-instance)
+  sys.rs           orologi, sessione di accesso, DPI, tema della barra, schermo spento
+  capabilities.rs  portatile? standby moderno? ibernazione? stato di esecuzione
+  lid.rs           azione del coperchio: primitive (registro e ripristino nella 0.2)
+  (triggers/       una regola per file, trait comune — 0.4)
+  (presence.rs     F15 via SendInput — 0.4, o 0.2 se lo spike lo chiede)
+  (actions.rs      blocco, sospensione, ibernazione, spegnimento — 0.2)
+  (sysevents.rs    finestra nascosta con le notifiche di sistema — 0.2)
+src-tauri/examples/
+  spike.rs         prova tecnica sullo standby moderno (docs/SPIKE.md)
 src/
-  index.html     popover
-  settings.html
-  i18n.js
-  styles.css
+  index.html, popover.js     il pannello
+  settings.html, settings.js le Impostazioni
+  i18n.js, locales/          traduzioni (una sola fonte con Rust)
+  styles.css                 token chiaro/scuro, due token per l'accento
+scripts/
+  icons.mjs        genera tutte le icone dagli SVG scritti a mano
+  check-js.mjs     node --check su ogni file JS
+  check-versions.mjs  stessa versione in package.json, Cargo.toml, tauri.conf.json, Cargo.lock
+tests/
+  i18n.test.mjs    chiavi uguali nelle lingue, ogni chiave usata esiste ed è usata
 ```
 
 **Dipendenze previste**:
 
-- `tauri` (feature `tray-icon`)
-- plugin Tauri: `single-instance`, `autostart`, `global-shortcut`, `notification`, `updater`, `process`, `opener`
-- `windows` (il crate di Microsoft), attivando **solo** le feature usate: `Win32_System_Power`, `Win32_System_Threading`, `Win32_UI_WindowsAndMessaging`, `Win32_UI_Input_KeyboardAndMouse`, `Win32_UI_Shell`, `Win32_System_Registry`, `Win32_System_Shutdown`, `Win32_Devices_Display` (per `QueryDisplayConfig`), …
-- `serde`, `serde_json`
+- `tauri` (feature `tray-icon`, `image-png`)
+- plugin Tauri: oggi `single-instance`, `autostart`, `opener`; poi `global-shortcut`, `notification`, `updater`, `process`
+- `windows` 0.61 (la stessa versione che usa Tauri, così non si compila due volte), attivando **solo** le feature usate. Poi arriveranno `Win32_UI_Input_KeyboardAndMouse`, `Win32_UI_Shell`, `Win32_System_Shutdown`, `Win32_Devices_Display` (per `QueryDisplayConfig`), …
+- `serde`, `serde_json`, `chrono` (solo `clock`, per "fino alle HH:MM" nel fuso locale e l'ora legale)
 
 Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
 
@@ -497,6 +576,16 @@ Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
 29. Standby moderno: a schermo spento `ES_SYSTEM_REQUIRED` non ha impedito lo standby in due casi documentati (ChargeKeeper #170, PowerToys #48965). Si risolve con lo spike, non a sentimento.
 30. Schermata di blocco: potrebbe annullare le richieste della sessione utente e spegnere il display dopo il suo timeout. Da misurare nello spike.
 
+### Trovate scrivendo la 0.0.1 (2026-09-22)
+
+31. Su alcuni portatili l'azione del coperchio è **nascosta** (`ATTRIB_HIDE`, è il caso di LPT-MIKI): `powercfg /q` non la mostra affatto, e sembra che l'impostazione non esista. Serve `powercfg /qh`. Le API la leggono e la scrivono normalmente.
+32. Nel crate `windows` 0.61 `PowerReadDCValueIndex`/`PowerWriteDCValueIndex` restituiscono un `u32` grezzo, mentre le versioni AC restituiscono `WIN32_ERROR`: si avvolgono in `WIN32_ERROR(...)`.
+33. Windows 11 mette le icone nuove fra quelle **nascoste** (^). Un'app che vive solo nella tray, al primo avvio, per l'utente semplicemente non c'è: da qui il benvenuto.
+34. Avvio rapido: "Arresta il sistema" non riavvia il kernel, quindi `GetTickCount64` continua a contare e un confronto sull'uptime scambia l'accensione successiva per lo stesso avvio. Per "riavvio dell'app sì, riavvio del PC no" serve anche la sessione di accesso (LUID dal token).
+35. A 16 px il disegno vettoriale dell'icona non regge: va disegnata pixel per pixel. Da 20 px in su il vettoriale va bene.
+36. Con `crate-type` `staticlib`/`cdylib` (quelli del template di Tauri, pensati per mobile) il linker MSVC stampa "Creazione della libreria …" e Rust recente lo segnala come avviso (`linker_messages`). Moka è solo per Windows: basta `rlib`.
+37. Dopo un `taskkill /F` il processo sparisce e con lui le richieste (verificato), ma sparisce anche il `tauri dev` che lo aveva lanciato: per riprovare la ripresa della sessione va rilanciato.
+
 ---
 
 ## Limiti da dichiarare all'utente (README e app)
@@ -515,7 +604,8 @@ Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
 "Compila" non vuol dire "funziona". Per considerare una modalità fatta:
 
 - Con la sessione attiva, `powercfg /requests` (da un prompt amministratore) mostra `moka.exe` nella sezione giusta (`SYSTEM`, e anche `DISPLAY` se lo schermo è incluso), con il motivo leggibile. A sessione finita non deve comparire più.
-- Chiudendo Moka a forza da Task Manager, la richiesta sparisce da `powercfg /requests`.
+- Senza amministratore, `spike info` legge lo stato di esecuzione del sistema: con una sessione attiva la prima colonna ("prima") vale `0x1` (SYSTEM) o `0x3` (SYSTEM+DISPLAY), a sessione finita `0x0`. Dice **che** qualcuno tiene sveglio il PC, non **chi**: per il nome del processo e il motivo serve `powercfg /requests`.
+- Chiudendo Moka a forza da Task Manager, la richiesta sparisce da `powercfg /requests` (e lo stato di esecuzione torna a `0x0`).
 - Schermo: con lo spegnimento dello schermo impostato temporaneamente a 1 minuto (da ripristinare dopo), lo schermo non si spegne.
 - Ogni verifica fatta a mano va in `test.md`, con data, macchina ed esito.
 
