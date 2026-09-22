@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-09-22 — 0.0.8: la rete di sicurezza del coperchio non è più di tutti
+
+Trovato provando a fare lo spike: l'azione del coperchio risultava "non fare nulla" con una sessione attiva (giusto), ma in `RunOnce` non c'era il valore che la rimetterebbe se Moka venisse uccisa.
+
+- **Correzione**: il valore in `RunOnce` si chiamava `MokaRestoreLid` **per tutte le Moka**. Chiunque si chiudesse lo cancellava, anche se era di un'altra: bastavano una build di sviluppo e quella vera accese insieme perché la sessione vera restasse senza rete di sicurezza. Ora il nome contiene un'impronta dell'eseguibile (`MokaRestoreLid-<16 cifre>`), quindi ognuno vede solo il proprio.
+- **Il fallimento non è più muto**: se la scrittura in `RunOnce` non riesce, Moka lo scrive nel log invece di ingoiare l'errore.
+- Verificato su LPT-MIKI: una build di release con identificativo diverso scrive il proprio valore, e chiudendosi toglie **solo** quello, lasciando in pace l'altra Moka e la sua modifica al coperchio.
+- **Resta aperto**: la Moka 0.0.3 in esecuzione su questa macchina non scriveva il valore nemmeno da sola, mentre la build attuale sì — con lo stesso codice, stesso utente, stessa chiave (scrivibile: provato). Senza poter sperimentare sulla sessione in corso non si è potuto stringere oltre: il log aggiunto adesso dirà il motivo alla prossima volta. Vale la pena ricontrollarlo appena Moka si riavvia con questa versione.
+
 ## 2026-09-22 — misura: il pannello pigro costa 3 secondi, e resta com'è
 
 Nessun cambio di codice (versione invariata, 0.0.7): una strada provata, misurata e scartata, scritta perché non la si riprovi a vuoto.

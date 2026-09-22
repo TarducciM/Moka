@@ -83,6 +83,11 @@
 - [x] Tre `start_session` e quattro `toggle` simultanei: una sola sessione, poi spento; due `add_rule` identiche insieme: una salvata, una "Questa regola c'è già"
 - [x] 22 regole: si ferma a 20 con "Hai raggiunto il numero massimo di regole"; con 20 nomi lunghissimi l'elenco resta leggibile e non compare scorrimento orizzontale
 
+2026-09-22, **LPT-MIKI**, Moka 0.0.8.
+
+- [x] Il valore in `RunOnce` ha un nome per eseguibile (`MokaRestoreLid-<impronta>`): una build di release con identificativo diverso scrive il proprio e, chiudendosi, toglie **solo** quello — l'altra Moka e la sua modifica al coperchio restano intatte
+- [x] Chiusa la prova, l'azione del coperchio a batteria torna "sospendi" e quella in carica resta all'altra Moka (che la sta tenendo per la sua sessione)
+
 ## Da verificare
 
 Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) oppure un altro PC.
@@ -106,6 +111,12 @@ Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) opp
 - [ ] "…e poi" eseguito davvero: blocca, sospendi, iberna, arresta (non provati: avrebbero fermato il PC di lavoro)
 - [ ] Aggiornamento vero da una versione pubblicata alla successiva (serve il repo pubblico): mai durante una sessione, l'impostazione del coperchio rimessa prima
 - [ ] Promemoria stella dopo 5 avvii e 3 giorni
+
+### Rete di sicurezza del coperchio (0.0.8)
+
+- [ ] Con una sessione "anche a coperchio chiuso" attiva, `RunOnce` contiene `MokaRestoreLid-<impronta>` con il percorso giusto e `--restore-lid`; a sessione finita sparisce
+- [ ] **Perché la 0.0.3 non lo scriveva** su questa macchina: riprovare con la 0.0.8, che ora scrive nel log il motivo dell'eventuale fallimento (`moka: RunOnce non scritto: …`)
+- [ ] Moka uccisa da Gestione attività con la modifica attiva, poi disconnessione e nuovo accesso a Windows: l'impostazione del coperchio torna com'era da sola (è ciò che serve la rete di sicurezza)
 
 ### Pannello (0.0.6)
 

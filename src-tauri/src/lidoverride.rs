@@ -309,7 +309,27 @@ pub struct WindowsBackend;
 
 const RUN_ONCE: windows::core::PCWSTR =
     windows::core::w!("Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce");
-const RUN_ONCE_VALUE: windows::core::PCWSTR = windows::core::w!("MokaRestoreLid");
+
+/// Il nome del valore in `RunOnce`, **uno per eseguibile**: `MokaRestoreLid`
+/// e basta era lo stesso per tutte le Moka, e chiunque si chiudesse lo
+/// cancellava — anche quello scritto da un'altra. Succede davvero: una build
+/// di sviluppo accanto a quella installata (vedi la trappola 49) toglieva la
+/// rete di sicurezza alla sessione vera.
+fn run_once_value() -> Vec<u16> {
+    let exe = std::env::current_exe()
+        .map(|p| p.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    // FNV-1a: basta che sia stabile per lo stesso percorso.
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in exe.as_bytes() {
+        hash ^= u64::from(*b);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    format!("MokaRestoreLid-{hash:016x}")
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect()
+}
 
 impl Backend for WindowsBackend {
     fn active_scheme(&self) -> Option<GUID> {
@@ -335,19 +355,28 @@ impl Backend for WindowsBackend {
             RegCloseKey, RegCreateKeyExW, RegDeleteKeyValueW, RegSetValueExW, HKEY,
             HKEY_CURRENT_USER, KEY_SET_VALUE, REG_OPTION_NON_VOLATILE, REG_SZ,
         };
+        let value = run_once_value();
+        let value = windows::core::PCWSTR(value.as_ptr());
         unsafe {
             if !on {
-                let _ = RegDeleteKeyValueW(HKEY_CURRENT_USER, RUN_ONCE, RUN_ONCE_VALUE);
+                let _ = RegDeleteKeyValueW(HKEY_CURRENT_USER, RUN_ONCE, value);
                 return;
             }
-            let Ok(exe) = std::env::current_exe() else {
-                return;
+            // Un fallimento qui toglie la rete di sicurezza (se Moka viene
+            // uccisa, l'impostazione resta cambiata fino al suo prossimo
+            // avvio): va detto, non ingoiato.
+            let exe = match std::env::current_exe() {
+                Ok(exe) => exe,
+                Err(err) => {
+                    eprintln!("moka: RunOnce non scritto, eseguibile ignoto: {err}");
+                    return;
+                }
             };
             let command = format!("\"{}\" --restore-lid", exe.display());
             let wide: Vec<u16> = command.encode_utf16().chain(std::iter::once(0)).collect();
             let bytes = std::slice::from_raw_parts(wide.as_ptr() as *const u8, wide.len() * 2);
             let mut key = HKEY::default();
-            if RegCreateKeyExW(
+            let opened = RegCreateKeyExW(
                 HKEY_CURRENT_USER,
                 RUN_ONCE,
                 None,
@@ -357,12 +386,15 @@ impl Backend for WindowsBackend {
                 None,
                 &mut key,
                 None,
-            )
-            .is_ok()
-            {
-                let _ = RegSetValueExW(key, RUN_ONCE_VALUE, None, REG_SZ, Some(bytes));
-                let _ = RegCloseKey(key);
+            );
+            if let Err(err) = opened.ok() {
+                eprintln!("moka: RunOnce non aperto: {err}");
+                return;
             }
+            if let Err(err) = RegSetValueExW(key, value, None, REG_SZ, Some(bytes)).ok() {
+                eprintln!("moka: RunOnce non scritto: {err}");
+            }
+            let _ = RegCloseKey(key);
         }
     }
 }
@@ -376,6 +408,16 @@ pub fn restore_from_disk(dir: PathBuf) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn run_once_value_is_per_exe_and_stable() {
+        let a = run_once_value();
+        assert_eq!(a, run_once_value(), "stesso eseguibile, stesso nome");
+        let name = String::from_utf16_lossy(&a[..a.len() - 1]);
+        assert!(name.starts_with("MokaRestoreLid-"), "{name}");
+        assert_eq!(name.len(), "MokaRestoreLid-".len() + 16);
+        assert_eq!(*a.last().unwrap(), 0, "termina con lo zero");
+    }
     use std::cell::{Cell, RefCell};
     use std::collections::HashMap;
 
