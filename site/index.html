@@ -19,105 +19,184 @@
     />
     <meta property="og:url" content="https://moka.mtsolutions.studio/" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="style.css" />
     <script src="lang.js" defer></script>
   </head>
   <body>
     <header class="site-header">
-      <a class="brand" href="./">
-        <img src="favicon.svg" alt="" />
-        Moka
-      </a>
+      <a class="brand" href="./"><img src="favicon.svg" alt="" />Moka</a>
       <span class="by"><span data-lang="it">di</span><span data-lang="en">by</span> <a href="https://mtsolutions.studio">MTSolutions</a></span>
+      <nav class="header-links">
+        <span class="version-pill" id="version-pill"><span data-lang="it">in sviluppo</span><span data-lang="en">in development</span></span>
+        <a href="https://github.com/TarducciM/Moka" target="_blank" rel="noopener">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          GitHub
+        </a>
+      </nav>
       <nav class="lang-switch" aria-label="Lingua / Language">
         <button type="button" data-lang-switch="it">IT</button>
         <button type="button" data-lang-switch="en">EN</button>
       </nav>
     </header>
 
-    <main class="container">
-      <div class="hero">
-        <div data-lang="it">
-          <h1>Il PC resta sveglio finché serve a te</h1>
-          <p class="lead">
-            Un clic nella tray e Windows non va in sospensione: per un'ora, fino alle 18:30, finché non lo spegni. Anche lo
-            schermo, se vuoi. Anche a coperchio chiuso, se è un portatile. Poi, se vuoi, lo spegne lui.
+    <main id="top">
+      <div class="container">
+        <section class="hero">
+          <div class="eyebrow">keep-awake · windows · open source</div>
+
+          <div data-lang="it">
+            <h1>Il PC resta <em>sveglio finché serve a te.</em></h1>
+            <p class="lead">
+              Un clic nella tray e Windows non va in sospensione: per un'ora, fino alle <code>18:30</code>, finché non lo
+              spegni. Anche lo schermo, se vuoi. Anche a coperchio chiuso, se è un portatile. Poi, se vuoi, lo spegne lui.
+            </p>
+          </div>
+          <div data-lang="en">
+            <h1>Your PC stays <em>awake for as long as you need.</em></h1>
+            <p class="lead">
+              One click in the tray and Windows won't go to sleep: for an hour, until <code>6:30 pm</code>, until you turn
+              it off. The screen too, if you like. Even with the lid closed, on a laptop. And then, if you want, it turns
+              the PC off for you.
+            </p>
+          </div>
+
+          <div class="btn-row">
+            <a class="btn-primary" href="https://github.com/TarducciM/Moka/releases/latest" id="primary-download">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v13m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
+              <span id="primary-download-label"><span data-lang="it">Scarica per Windows</span><span data-lang="en">Download for Windows</span></span>
+            </a>
+            <a class="btn" href="#downloads"><span data-lang="it">Altre build</span><span data-lang="en">Other builds</span></a>
+            <a class="btn" href="https://github.com/TarducciM/Moka#readme" target="_blank" rel="noopener">
+              <span data-lang="it">Elenco funzioni completo</span><span data-lang="en">Full feature list</span> ↗
+            </a>
+          </div>
+          <p class="note">
+            <span data-lang="it">Windows 10 e 11, 64 bit · gratis e open source, licenza MIT</span>
+            <span data-lang="en">Windows 10 and 11, 64-bit · free and open source, MIT license</span>
           </p>
-        </div>
-        <div data-lang="en">
-          <h1>Your PC stays awake for as long as you need</h1>
-          <p class="lead">
-            One click in the tray and Windows won't go to sleep: for an hour, until 6:30 pm, until you turn it off. The
-            screen too, if you like. Even with the lid closed, on a laptop. And then, if you want, it turns the PC off for
-            you.
-          </p>
-        </div>
-        <div class="btn-row">
-          <a class="btn btn-primary" href="https://github.com/TarducciM/Moka/releases/latest">
-            <span data-lang="it">Scarica per Windows</span><span data-lang="en">Download for Windows</span>
-          </a>
-          <a class="btn" href="https://github.com/TarducciM/Moka">
-            <span data-lang="it">Codice sorgente</span><span data-lang="en">Source code</span>
-          </a>
-        </div>
-        <p class="note">
-          <span data-lang="it">Windows 10 e 11, 64 bit · gratis e open source, licenza MIT</span>
-          <span data-lang="en">Windows 10 and 11, 64-bit · free and open source, MIT license</span>
-        </p>
-      </div>
 
-      <div class="shots">
-        <img
-          src="img/panel-light.png"
-          width="340"
-          height="470"
-          alt="Il pannello di Moka acceso: solo il PC, anche a coperchio chiuso, finché non lo spegni"
-        />
-        <img
-          src="img/panel-dark.png"
-          width="340"
-          height="564"
-          alt="Il pannello di Moka in tema scuro: PC e schermo, per 45 minuti"
-        />
-      </div>
+          <div class="shots" aria-hidden="true">
+            <div class="shot-card">
+              <img
+                src="img/panel-light.png"
+                width="340"
+                height="470"
+                alt="Il pannello di Moka in tema chiaro: solo il PC, per sempre, finché non lo spegni"
+              />
+              <div class="shot-caption" data-lang="it">tema chiaro</div>
+              <div class="shot-caption" data-lang="en">light theme</div>
+            </div>
+            <div class="shot-card">
+              <img
+                src="img/panel-dark.png"
+                width="340"
+                height="564"
+                alt="Il pannello di Moka in tema scuro: PC e schermo, per 45 minuti"
+              />
+              <div class="shot-caption" data-lang="it">tema scuro, dalla tray</div>
+              <div class="shot-caption" data-lang="en">dark theme, from the tray</div>
+            </div>
+          </div>
+        </section>
 
-      <section data-lang="it">
-        <h2>Cosa fa</h2>
-        <ul class="feature-list">
-          <li><strong>Solo il PC, o anche lo schermo</strong><span>Niente sospensione; e se serve, nemmeno lo schermo che si spegne. Oppure spegni subito lo schermo e lascia sveglio il PC.</span></li>
-          <li><strong>Per quanto vuoi</strong><span>15 minuti, 4 ore, fino alle 18:30 o finché non lo spegni. Le durate rapide le scegli tu.</span></li>
-          <li><strong>…e poi</strong><span>A fine sessione può spegnere lo schermo, bloccare, sospendere, ibernare o spegnere il PC, sempre dopo un conto alla rovescia annullabile. Cinque minuti prima ti avvisa, con un «+30 min».</span></li>
-          <li><strong>Regole automatiche</strong><span>Sveglio mentre un programma è aperto, sei in chiamata, guardi un video a schermo intero, scarichi un file o il processore lavora; in carica, con il monitor esterno o in una fascia oraria. Il pannello dice sempre perché è acceso, e le regole si sospendono con un clic.</span></li>
-          <li><strong>Anche a coperchio chiuso</strong><span>Sui portatili, solo in carica o anche a batteria, con la modalità scrivania per il monitor esterno e una protezione se il portatile finisce chiuso in una borsa. L'impostazione di Windows torna sempre com'era, anche se Moka si chiudesse di colpo.</span></li>
-          <li><strong>Batteria al sicuro</strong><span>Sotto la carica che scegli, la sessione finisce da sola e te lo dice.</span></li>
-          <li><strong>Tasti rapidi e riga di comando</strong><span>Accendi e spegni senza toccare il mouse, o da uno script: <code>moka --for 2h --then sleep</code>.</span></li>
-          <li><strong>Tutto sul tuo PC</strong><span>Nessun account, nessun cloud, nessuna telemetria. L'unica connessione è il controllo degli aggiornamenti, una volta al giorno.</span></li>
-        </ul>
-      </section>
-      <section data-lang="en">
-        <h2>What it does</h2>
-        <ul class="feature-list">
-          <li><strong>PC only, or the screen too</strong><span>No sleep; and if you need it, no screen turning off either. Or turn off the screen right now and keep the PC awake.</span></li>
-          <li><strong>For as long as you want</strong><span>15 minutes, 4 hours, until 6:30 pm or until you turn it off. You choose the quick durations.</span></li>
-          <li><strong>…and then</strong><span>At the end of a session it can turn off the screen, lock, sleep, hibernate or shut down the PC, always after a countdown you can cancel. Five minutes before, it warns you, with a “+30 min”.</span></li>
-          <li><strong>Automatic rules</strong><span>Awake while a program is open, you're in a call, a video is full screen, a file is downloading or the processor is working; while charging, with an external monitor or during a time window. The panel always says why it's on, and rules pause with one click.</span></li>
-          <li><strong>Even with the lid closed</strong><span>On laptops, only while plugged in or on battery too, with a desk mode for an external monitor and a protection in case the laptop ends up closed in a bag. The Windows setting always goes back as it was, even if Moka closed abruptly.</span></li>
-          <li><strong>Battery kept safe</strong><span>Below the charge you choose, the session ends on its own and tells you.</span></li>
-          <li><strong>Shortcuts and command line</strong><span>Turn it on and off without touching the mouse, or from a script: <code>moka --for 2h --then sleep</code>.</span></li>
-          <li><strong>Everything stays on your PC</strong><span>No account, no cloud, no telemetry. The only connection is the update check, once a day.</span></li>
-        </ul>
-      </section>
+        <section class="features">
+          <div class="section-head">
+            <div class="eyebrow">what it does</div>
+            <div data-lang="it">
+              <h2>Un clic, e Windows aspetta.</h2>
+              <p>Nessun account, nessun cloud, nessuna telemetria. Lo installi, impari il clic, e per il resto sta fuori dai piedi.</p>
+            </div>
+            <div data-lang="en">
+              <h2>One click, and Windows waits.</h2>
+              <p>No account, no cloud, no telemetry. Install it, learn the click, and it stays out of your way otherwise.</p>
+            </div>
+          </div>
 
-      <section>
-        <h2><span data-lang="it">Riga di comando</span><span data-lang="en">Command line</span></h2>
-        <pre><code>moka --for 2h            <span data-lang="it"># sveglio per 2 ore</span><span data-lang="en"># awake for 2 hours</span>
+          <ul class="feature-list" data-lang="it">
+            <li><strong>Solo il PC, o anche lo schermo</strong><span>Niente sospensione; e se serve, nemmeno lo schermo che si spegne. Oppure spegni subito lo schermo e lascia sveglio il PC.</span></li>
+            <li><strong>Per quanto vuoi</strong><span>15 minuti, 4 ore, fino alle 18:30 o finché non lo spegni. Le durate rapide le scegli tu.</span></li>
+            <li><strong>…e poi</strong><span>A fine sessione può spegnere lo schermo, bloccare, sospendere, ibernare o spegnere il PC, sempre dopo un conto alla rovescia annullabile. Cinque minuti prima ti avvisa, con un «+30 min».</span></li>
+            <li><strong>Regole automatiche</strong><span>Sveglio mentre un programma è aperto, sei in chiamata, guardi un video a schermo intero, scarichi un file o il processore lavora; in carica, con il monitor esterno o in una fascia oraria. Il pannello dice sempre perché è acceso, e le regole si sospendono con un clic.</span></li>
+            <li><strong>Anche a coperchio chiuso</strong><span>Sui portatili, solo in carica o anche a batteria, con la modalità scrivania per il monitor esterno e una protezione se il portatile finisce chiuso in una borsa. L'impostazione di Windows torna sempre com'era, anche se Moka si chiudesse di colpo.</span></li>
+            <li><strong>Batteria al sicuro</strong><span>Sotto la carica che scegli, la sessione finisce da sola e te lo dice.</span></li>
+            <li><strong>Tasti rapidi e riga di comando</strong><span>Accendi e spegni senza toccare il mouse, o da uno script: <code>moka --for 2h --then sleep</code>.</span></li>
+            <li><strong>Tutto sul tuo PC</strong><span>Nessun account, nessun cloud, nessuna telemetria. L'unica connessione è il controllo degli aggiornamenti, una volta al giorno.</span></li>
+          </ul>
+          <ul class="feature-list" data-lang="en">
+            <li><strong>PC only, or the screen too</strong><span>No sleep; and if you need it, no screen turning off either. Or turn off the screen right now and keep the PC awake.</span></li>
+            <li><strong>For as long as you want</strong><span>15 minutes, 4 hours, until 6:30 pm or until you turn it off. You choose the quick durations.</span></li>
+            <li><strong>…and then</strong><span>At the end of a session it can turn off the screen, lock, sleep, hibernate or shut down the PC, always after a countdown you can cancel. Five minutes before, it warns you, with a "+30 min".</span></li>
+            <li><strong>Automatic rules</strong><span>Awake while a program is open, you're in a call, a video is full screen, a file is downloading or the processor is working; while charging, with an external monitor or during a time window. The panel always says why it's on, and rules pause with one click.</span></li>
+            <li><strong>Even with the lid closed</strong><span>On laptops, only while plugged in or on battery too, with a desk mode for an external monitor and a protection in case the laptop ends up closed in a bag. The Windows setting always goes back as it was, even if Moka closed abruptly.</span></li>
+            <li><strong>Battery kept safe</strong><span>Below the charge you choose, the session ends on its own and tells you.</span></li>
+            <li><strong>Shortcuts and command line</strong><span>Turn it on and off without touching the mouse, or from a script: <code>moka --for 2h --then sleep</code>.</span></li>
+            <li><strong>Everything stays on your PC</strong><span>No account, no cloud, no telemetry. The only connection is the update check, once a day.</span></li>
+          </ul>
+        </section>
+
+        <section class="cli">
+          <h2><span data-lang="it">Riga di comando</span><span data-lang="en">Command line</span></h2>
+          <pre><code>moka --for 2h            <span data-lang="it"># sveglio per 2 ore</span><span data-lang="en"># awake for 2 hours</span>
 moka --until 18:30       <span data-lang="it"># fino alle 18:30</span><span data-lang="en"># until 18:30</span>
 moka --screen            <span data-lang="it"># anche lo schermo</span><span data-lang="en"># the screen too</span>
 moka --then sleep        <span data-lang="it"># a fine sessione: sospendi</span><span data-lang="en"># at the end: sleep</span>
 moka --lid               <span data-lang="it"># anche a coperchio chiuso</span><span data-lang="en"># with the lid closed too</span>
 moka --while ffmpeg.exe  <span data-lang="it"># finché gira ffmpeg</span><span data-lang="en"># while ffmpeg runs</span>
 moka --off               <span data-lang="it"># spegni</span><span data-lang="en"># turn off</span></code></pre>
-      </section>
+        </section>
+
+        <section class="downloads" id="downloads">
+          <div class="section-head">
+            <div class="eyebrow">get it</div>
+            <div data-lang="it">
+              <h2>Scegli la tua build.</h2>
+            </div>
+            <div data-lang="en">
+              <h2>Pick your build.</h2>
+            </div>
+            <p id="downloads-sub">
+              <span data-lang="it">Controllo GitHub per l'ultima release…</span>
+              <span data-lang="en">Checking GitHub for the latest release…</span>
+            </p>
+          </div>
+          <div class="platform-grid" id="platform-grid" hidden>
+            <!-- popolato via JS se esiste una release -->
+          </div>
+          <div class="no-release" id="no-release" hidden>
+            <div data-lang="it">
+              <h3>Nessuna build installabile ancora</h3>
+              <p>Moka è in sviluppo attivo e non ha ancora pubblicato una prima release. Metti una stella al repo o segui le release per essere avvisato appena esce la v0.1.0.</p>
+            </div>
+            <div data-lang="en">
+              <h3>No installable build yet</h3>
+              <p>Moka is under active development and hasn't shipped a first release. Star the repo or watch releases to get notified the moment v0.1.0 is out.</p>
+            </div>
+            <a class="btn" href="https://github.com/TarducciM/Moka" target="_blank" rel="noopener">
+              <span data-lang="it">Metti una stella su GitHub</span><span data-lang="en">Star on GitHub</span> ↗
+            </a>
+            <a class="btn" href="https://github.com/TarducciM/Moka/releases" target="_blank" rel="noopener">
+              <span data-lang="it">Segui le release</span><span data-lang="en">Watch releases</span> ↗
+            </a>
+          </div>
+          <noscript>
+            <p style="color:var(--text-dim); font-size:14px;">
+              JavaScript è disattivato, quindi questa pagina non può controllare automaticamente le release — vedi la
+              <a href="https://github.com/TarducciM/Moka/releases" style="color:var(--accent-soft);">pagina delle release</a> direttamente.
+            </p>
+          </noscript>
+          <p class="all-releases">
+            <span data-lang="it">Versioni precedenti e changelog completo sulla</span>
+            <span data-lang="en">Older versions and full changelogs on the</span>
+            <a href="https://github.com/TarducciM/Moka/releases" target="_blank" rel="noopener"><span data-lang="it">pagina delle release ↗</span><span data-lang="en">releases page ↗</span></a>
+          </p>
+        </section>
+      </div>
     </main>
 
     <footer class="site-footer">
@@ -126,9 +205,95 @@ moka --off               <span data-lang="it"># spegni</span><span data-lang="en
         <a href="terms.html"><span data-lang="it">Termini</span><span data-lang="en">Terms</span></a> ·
         <a href="cookie-policy.html">Cookie</a> ·
         <a href="https://github.com/TarducciM/Moka">GitHub</a> ·
-        <a href="https://mtsolutions.studio">MTSolutions</a>
+        <a href="https://github.com/TarducciM/Moka/issues"><span data-lang="it">Segnala un problema</span><span data-lang="en">Report an issue</span></a> ·
+        <a href="https://github.com/TarducciM/Moka/blob/main/LICENSE"><span data-lang="it">Licenza</span><span data-lang="en">License</span></a>
       </p>
       <p>&copy; <span class="year">2026</span> San Marino Games S.r.l. · MTSolutions</p>
     </footer>
+
+    <script>
+      (function () {
+        'use strict';
+
+        var REPO = 'TarducciM/Moka';
+        var API_URL = 'https://api.github.com/repos/' + REPO + '/releases/latest';
+
+        var PLATFORMS = [
+          {
+            id: 'setup', name: 'Installer', desc: 'NSIS setup, recommended',
+            match: function (a) { return /_x64-setup\.exe$/.test(a.name); },
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8 12 3l9 5v10l-9 5-9-5Z"/><path d="M12 3v10m0 0 9-5M12 13 3 8"/></svg>'
+          },
+          {
+            id: 'msi', name: 'MSI package', desc: 'For managed / IT deployments',
+            match: function (a) { return /\.msi$/.test(a.name); },
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9h16"/><circle cx="7" cy="6.5" r=".4" fill="currentColor" stroke="none"/></svg>'
+          },
+          {
+            id: 'portable', name: 'Portable', desc: 'No install, just run',
+            match: function (a) { return /_x64-portable\.exe$/.test(a.name); },
+            icon: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></svg>'
+          }
+        ];
+
+        function showNoRelease() {
+          document.getElementById('downloads-sub').style.display = 'none';
+          document.getElementById('no-release').hidden = false;
+          document.getElementById('platform-grid').hidden = true;
+        }
+
+        fetch(API_URL, { headers: { Accept: 'application/vnd.github+json' } })
+          .then(function (res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+          })
+          .then(function (release) {
+            var version = release.tag_name || '';
+            var pill = document.getElementById('version-pill');
+            if (version) pill.textContent = version;
+
+            var assets = release.assets || [];
+            var byId = {};
+            PLATFORMS.forEach(function (p) { byId[p.id] = assets.filter(p.match)[0]; });
+
+            var anyAsset = PLATFORMS.some(function (p) { return byId[p.id]; });
+            if (!anyAsset) { showNoRelease(); return; }
+
+            var grid = document.getElementById('platform-grid');
+            grid.hidden = false;
+            grid.innerHTML = '';
+            PLATFORMS.forEach(function (p) {
+              var asset = byId[p.id];
+              var a = document.createElement('a');
+              a.className = 'platform-card';
+              if (asset) {
+                a.href = asset.browser_download_url;
+              } else {
+                a.href = release.html_url;
+                a.target = '_blank';
+                a.rel = 'noopener';
+              }
+              a.innerHTML = p.icon + '<span class="p-name">' + p.name + '</span>' +
+                '<span class="p-desc">' + p.desc + '</span>' +
+                '<span class="p-file' + (asset ? '' : ' muted') + '">' + (asset ? asset.name : 'see release page') + '</span>';
+              grid.appendChild(a);
+            });
+
+            var primary = document.getElementById('primary-download');
+            var primaryLabel = document.getElementById('primary-download-label');
+            var isIt = document.documentElement.lang === 'it';
+            if (byId.setup) {
+              primary.href = byId.setup.browser_download_url;
+              primaryLabel.textContent = (isIt ? 'Scarica ' : 'Download ') + version;
+            }
+
+            document.getElementById('downloads-sub').textContent =
+              (isIt ? 'Ultima release: ' : 'Latest release: ') + version;
+          })
+          .catch(function () {
+            showNoRelease();
+          });
+      })();
+    </script>
   </body>
 </html>
