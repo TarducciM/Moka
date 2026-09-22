@@ -59,6 +59,17 @@
 - [x] Presenza attiva: l'inattività di Windows sale fino a 50 s e al controllo dopo torna a 0 da sola (F15)
 - [x] Contrasti delle parti nuove, pannello e Impostazioni, chiaro e scuro: nessun testo sotto soglia (minimo 4,95:1, il badge "Adesso")
 
+2026-09-22, **LPT-MIKI**, Moka 0.0.5 in `tauri dev` con identifier `com.moka.dev` (trappola 49). Dati letti via CDP e con `spike diagnose`/`spike probes`.
+
+- [x] Diagnostica dalla scheda delle Impostazioni (e con l'evento che usa il menu della tray): in ~2 s "Adesso", ultimi standby e dispositivi. Sulla macchina vera ha detto "in carica non lo sospende mai" (vero: `powercfg` dà 0) e "negli ultimi standby è rimasto attivo per un audio aperto" (vero: 0% a basso consumo e `AudioPlaying` in tutti gli ultimi 507)
+- [x] Ultimi standby: "Oggi alle 13:08, dopo 42 min di standby · si è svegliato: hai mosso il mouse · era entrato in standby per inattività", coerente con il registro di Windows
+- [x] "Cosa può svegliarlo": gli stessi 4 dispositivi di `powercfg /devicequery wake_armed`; timer di risveglio disattivati, come nello schema
+- [x] Aperta dal menu, la scheda va in cima alla finestra dopo i risultati e il focus resta sul pulsante
+- [x] Regola "Rete connessa": il modulo suggerisce "WiFi-ABCOM 4" (la rete su cavo), la regola accende subito ("Acceso · sei connesso a «WiFi-ABCOM 4»")
+- [x] Regola "Disco USB collegato" senza dischi USB: resta spenta; il bus dei volumi si legge (`C:` NVMe, 17)
+- [x] Memoria: a pannello nascosto 95 MB di working set per i processi WebView2 (254 aperto), contro 138 MB della 0.0.3 nascosta da ore; memoria privata uguale (~103 MB)
+- [x] Contrasti della scheda Diagnostica (anche con una riga d'esempio di "chi lo tiene sveglio" e l'errore), chiaro e scuro: nessun testo sotto soglia; il bordo "probabile causa" ≥ 5,8:1
+
 ## Da verificare
 
 Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) oppure un altro PC.
@@ -82,6 +93,14 @@ Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) opp
 - [ ] "…e poi" eseguito davvero: blocca, sospendi, iberna, arresta (non provati: avrebbero fermato il PC di lavoro)
 - [ ] Aggiornamento vero da una versione pubblicata alla successiva (serve il repo pubblico): mai durante una sessione, l'impostazione del coperchio rimessa prima
 - [ ] Promemoria stella dopo 5 avvii e 3 giorni
+
+### Diagnostica, USB e rete (0.0.5)
+
+- [ ] "Mostra chi lo tiene sveglio": compare il prompt dell'amministratore; con "Sì", l'elenco (e `moka.exe` segnato "Moka (questa app)" se è accesa); con "No", il messaggio "senza il permesso…". Su Windows in italiano e in inglese (trappola 18)
+- [ ] Voce "Perché non dorme?…" nel menu della tray: apre le Impostazioni già sulla diagnostica e fa il controllo; con le Impostazioni già aperte, ci va lo stesso
+- [ ] Regola "Disco USB collegato" con una chiavetta e con un disco esterno: accesa entro 5 s dall'inserimento, spenta alla rimozione
+- [ ] Regola "Rete connessa" su Wi-Fi: accende sulla rete giusta, resta accesa 30 s se il Wi-Fi cade, si spegne cambiando rete
+- [ ] Diagnostica su un PC con sospensione classica (S3): i risvegli da `Power-Troubleshooter` 1 con il dispositivo o il timer
 
 ### Regole e Presenza (0.0.4)
 

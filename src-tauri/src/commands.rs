@@ -4,10 +4,14 @@
 //! asincrono perché crea una finestra, e su Windows crearla dal thread
 //! principale dentro un comando sincrono va in deadlock.
 
-use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager, State, WebviewWindow, WebviewWindowBuilder};
+use std::sync::Mutex;
 
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow, WebviewWindowBuilder};
+
+use crate::capabilities;
 use crate::control;
+use crate::diagnose::{self, note, ElevatedError, NoteDto, RequestDto, RestDto};
 use crate::i18n;
 use crate::i18n::{duration_label, lid_action_label, t, tv, Lang};
 use crate::popover;
@@ -23,6 +27,10 @@ use crate::sys;
 use crate::updates;
 
 pub const SETTINGS_LABEL: &str = "settings";
+
+/// La sezione da mostrare all'apertura delle Impostazioni ("Perché non
+/// dorme?…" dal menu apre la diagnostica). La prende `settings_ready`.
+static SETTINGS_SECTION: Mutex<Option<&'static str>> = Mutex::new(None);
 
 #[tauri::command]
 pub fn get_state(state: State<'_, AppState>) -> StateDto {
@@ -204,10 +212,144 @@ pub fn close_settings(window: WebviewWindow) {
     let _ = window.close();
 }
 
+/// Apre le Impostazioni su una sezione. Se la finestra è già aperta glielo
+/// dice con un evento; altrimenti la sezione aspetta `settings_ready`.
+pub fn show_settings_at(app: AppHandle, section: &'static str) -> tauri::Result<()> {
+    if app.get_webview_window(SETTINGS_LABEL).is_some() {
+        let _ = app.emit_to(SETTINGS_LABEL, "moka://settings-section", section);
+    } else {
+        *SETTINGS_SECTION.lock().unwrap() = Some(section);
+    }
+    show_settings(app)
+}
+
+/// La pagina è pronta: si mostra, e prende la sezione chiesta (se c'è).
 #[tauri::command]
-pub fn settings_ready(window: WebviewWindow) {
+pub fn settings_ready(window: WebviewWindow) -> Option<String> {
     let _ = window.show();
     let _ = window.set_focus();
+    SETTINGS_SECTION.lock().unwrap().take().map(str::to_owned)
+}
+
+/// La diagnostica, già a parole.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiagnosisDto {
+    pub now: Vec<NoteDto>,
+    pub rests: Vec<RestDto>,
+    pub devices: Vec<String>,
+    pub timers: Option<String>,
+}
+
+/// "Perché non dorme? Perché si è svegliato?", senza amministratore.
+/// Asincrono: legge il registro eventi fuori dal thread principale.
+#[tauri::command]
+pub async fn diagnose(app: AppHandle) -> DiagnosisDto {
+    let (lang, session_on, reasons, presence, has_battery, modern) = {
+        let st = app.state::<AppState>();
+        let c = st.core.lock().unwrap();
+        (
+            c.lang,
+            c.session.is_some(),
+            c.reasons(),
+            c.settings.presence,
+            c.lid.caps.batteries,
+            c.lid.caps.modern_standby,
+        )
+    };
+    let moka_awake = session_on || !reasons.is_empty();
+    let mut now = Vec::new();
+    if session_on {
+        now.push(note(t(lang, "diag.now_moka_session"), false));
+    }
+    if !reasons.is_empty() {
+        now.push(note(
+            tv(
+                lang,
+                "diag.now_moka_rules",
+                &[("reasons", &reasons.join(", "))],
+            ),
+            false,
+        ));
+    }
+    if moka_awake {
+        if presence {
+            now.push(note(t(lang, "diag.now_presence"), true));
+        }
+    } else {
+        now.push(note(t(lang, "diag.now_moka_off"), false));
+        // Senza Moka, i bit dello stato di esecuzione sono di qualcun altro.
+        let es = capabilities::execution_state().unwrap_or(0);
+        now.push(if es & 1 != 0 {
+            note(t(lang, "diag.now_others"), true)
+        } else if es & 2 != 0 {
+            note(t(lang, "diag.now_others_display"), true)
+        } else {
+            note(t(lang, "diag.now_nobody"), false)
+        });
+    }
+    let sleep = diagnose::sleep_settings();
+    now.extend(diagnose::sleep_notes(lang, &sleep, has_battery));
+    let rests = diagnose::rests(&diagnose::recent_power_events(200));
+    now.extend(diagnose::audio_note(lang, &rests));
+    if modern {
+        now.push(note(t(lang, "diag.now_modern"), false));
+    }
+    DiagnosisDto {
+        now,
+        rests: rests
+            .iter()
+            .take(8)
+            .map(|r| diagnose::describe_rest(lang, r))
+            .collect(),
+        devices: diagnose::wake_devices(),
+        timers: diagnose::timers_note(lang, &sleep),
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestsDto {
+    pub items: Vec<RequestDto>,
+    /// Le righe di `powercfg /waketimers`, come le scrive Windows.
+    pub timers: Vec<String>,
+}
+
+/// "Mostra chi lo tiene sveglio": `powercfg /requests` con il prompt
+/// dell'amministratore. Aspetta la risposta dell'utente su un thread a parte.
+#[tauri::command]
+pub async fn diagnose_requests(app: AppHandle) -> Result<RequestsDto, String> {
+    let lang = app.state::<AppState>().core.lock().unwrap().lang;
+    let result = tauri::async_runtime::spawn_blocking(diagnose::elevated_powercfg)
+        .await
+        .map_err(|e| tv(lang, "diag.admin_failed", &[("error", &e.to_string())]))?;
+    match result {
+        // Senza la categoria SYSTEM l'uscita non è un elenco ma un errore di
+        // Windows: dirlo, invece di rispondere "nessuno".
+        Ok((requests, _)) if !requests.contains("SYSTEM:") => {
+            let first = requests.lines().map(str::trim).find(|l| !l.is_empty());
+            Err(tv(
+                lang,
+                "diag.admin_failed",
+                &[("error", first.unwrap_or("?"))],
+            ))
+        }
+        Ok((requests, timers)) => Ok(RequestsDto {
+            items: diagnose::parse_requests(&requests)
+                .iter()
+                .filter_map(|r| diagnose::describe_request(lang, r))
+                .collect(),
+            timers: timers
+                .lines()
+                .map(str::trim)
+                .filter(|l| !l.is_empty())
+                .take(20)
+                .map(str::to_owned)
+                .collect(),
+        }),
+        Err(ElevatedError::Cancelled) => Err(t(lang, "diag.admin_cancelled")),
+        Err(ElevatedError::Failed(e)) => Err(tv(lang, "diag.admin_failed", &[("error", &e)])),
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -320,6 +462,8 @@ fn rule_kinds(lang: Lang, has_battery: bool, laptop: bool) -> Vec<ShortcutChoice
         ("download", "settings.rule_kind_download", true),
         ("cpu", "settings.rule_kind_cpu", true),
         ("schedule", "settings.rule_kind_schedule", true),
+        ("usb", "settings.rule_kind_usb", true),
+        ("network", "settings.rule_kind_network", true),
         ("plugged", "settings.rule_kind_plugged", has_battery),
         ("monitor", "settings.rule_kind_monitor", laptop),
     ]
@@ -470,6 +614,12 @@ fn settings_dto(app: &AppHandle) -> SettingsDto {
 #[tauri::command]
 pub async fn list_processes() -> Vec<String> {
     probes::windowed_processes()
+}
+
+/// Le reti connesse adesso, per scegliere quella della regola.
+#[tauri::command]
+pub async fn list_networks() -> Vec<String> {
+    probes::connected_networks()
 }
 
 #[tauri::command]

@@ -56,30 +56,30 @@ pub fn active_scheme() -> Option<GUID> {
 }
 
 pub fn read(scheme: &GUID) -> Option<LidAction> {
+    let (ac, dc) = read_pair(scheme, &GUID_SYSTEM_BUTTON_SUBGROUP, &GUID_LIDCLOSE_ACTION)?;
+    Some(LidAction { ac, dc })
+}
+
+/// Un'impostazione dello schema, in carica e a batteria. Senza amministratore.
+pub fn read_pair(scheme: &GUID, subgroup: &GUID, setting: &GUID) -> Option<(u32, u32)> {
     let mut ac = 0u32;
     let mut dc = 0u32;
     unsafe {
-        PowerReadACValueIndex(
-            None,
-            Some(scheme),
-            Some(&GUID_SYSTEM_BUTTON_SUBGROUP),
-            Some(&GUID_LIDCLOSE_ACTION),
-            &mut ac,
-        )
-        .ok()
-        .ok()?;
+        PowerReadACValueIndex(None, Some(scheme), Some(subgroup), Some(setting), &mut ac)
+            .ok()
+            .ok()?;
         // Le versioni "DC" restituiscono un u32 grezzo invece di WIN32_ERROR.
         WIN32_ERROR(PowerReadDCValueIndex(
             None,
             Some(scheme),
-            Some(&GUID_SYSTEM_BUTTON_SUBGROUP),
-            Some(&GUID_LIDCLOSE_ACTION),
+            Some(subgroup),
+            Some(setting),
             &mut dc,
         ))
         .ok()
         .ok()?;
     }
-    Some(LidAction { ac, dc })
+    Some((ac, dc))
 }
 
 /// Scrive i valori indicati (`None` lascia com'è) e riattiva lo schema:

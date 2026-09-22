@@ -63,6 +63,7 @@ pub fn show(app: &AppHandle, anchor: Option<Anchor>) {
         app.state::<Shared>().lock().unwrap().anchor = anchor;
     }
     place(app, &win);
+    set_memory_low(&win, false);
     let _ = win.show();
     let _ = win.set_focus();
     let _ = app.emit_to(LABEL, "moka://popover-shown", ());
@@ -71,7 +72,31 @@ pub fn show(app: &AppHandle, anchor: Option<Anchor>) {
 pub fn hide(app: &AppHandle) {
     if let Some(win) = window(app) {
         let _ = win.hide();
+        set_memory_low(&win, true);
     }
+}
+
+/// Il pannello passa quasi tutto il tempo nascosto: lì WebView2 può tenere
+/// meno memoria (`MemoryUsageTargetLevel`, da WebView2 114; con una versione
+/// più vecchia la chiamata non c'è e non succede niente). Riaprendolo torna
+/// normale prima di mostrarsi.
+pub fn set_memory_low(win: &WebviewWindow, low: bool) {
+    let _ = win.with_webview(move |webview| {
+        use webview2_com::Microsoft::Web::WebView2::Win32::{
+            ICoreWebView2_19, COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL,
+        };
+        use windows::core::Interface;
+        unsafe {
+            let Ok(core) = webview.controller().CoreWebView2() else {
+                return;
+            };
+            if let Ok(v19) = core.cast::<ICoreWebView2_19>() {
+                let _ = v19.SetMemoryUsageTargetLevel(COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL(
+                    i32::from(low),
+                ));
+            }
+        }
+    });
 }
 
 pub fn on_blur(app: &AppHandle) {

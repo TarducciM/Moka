@@ -21,8 +21,9 @@ Tieni sveglio il tuo PC Windows, nello spirito di [Amphetamine](https://apps.app
 - Soglia batteria: sotto una certa carica la sessione finisce da sola
 - "…e poi": a fine sessione spegni lo schermo, blocca, sospendi, iberna o spegni, sempre dopo un conto alla rovescia annullabile; e 5 minuti prima un avviso con "+30 min"
 - Tasti rapidi globali per accendere, spegnere e spegnere lo schermo
-- Regole automatiche: sveglio mentre un programma è aperto, sei in chiamata, c'è un'app a schermo intero, il PC è in carica, è collegato un monitor esterno, c'è un download in corso, il processore è occupato, o in una fascia oraria. Ogni regola ha la sua modalità e il suo "…e poi", il pannello dice perché è acceso, e le regole si sospendono per un'ora con un clic
+- Regole automatiche: sveglio mentre un programma è aperto, sei in chiamata, c'è un'app a schermo intero, il PC è in carica, è collegato un monitor esterno, c'è un download in corso, il processore è occupato, è collegato un disco USB, sei su una certa rete, o in una fascia oraria. Ogni regola ha la sua modalità e il suo "…e poi", il pannello dice perché è acceso, e le regole si sospendono per un'ora con un clic
 - Presenza (facoltativa, spenta di default): dopo un minuto senza toccare niente preme F15, così niente salvaschermo, blocco per inattività o stato "Assente". Il blocco per inattività esiste per sicurezza: sui PC di lavoro può violare le regole aziendali
+- "Perché non dorme? Perché si è svegliato?": Moka legge ciò che Windows sa già (registro eventi, dispositivi che possono svegliarlo, impostazioni di sospensione) e lo spiega a parole; chi tiene sveglio il PC lo chiede a `powercfg /requests`, solo se lo chiedi tu e con il permesso dell'amministratore. Dal menu della tray: "Perché non dorme?…"
 - Aggiornamenti automatici firmati, mai durante una sessione
 - Chi tiene sveglio il PC e perché si vede in `powercfg /requests` ("Moka: sveglio per 2 h, fino alle 16:12")
 - Italiano e inglese
@@ -30,8 +31,6 @@ Tieni sveglio il tuo PC Windows, nello spirito di [Amphetamine](https://apps.app
 
 ### Cosa farà
 
-- Diagnostica: perché il PC non dorme, o perché si è svegliato
-- Regole su disco USB e rete Wi-Fi
 - Pubblicazione su winget
 
 ### Riga di comando
@@ -108,8 +107,9 @@ Keep your Windows PC awake, in the spirit of [Amphetamine](https://apps.apple.co
 - Battery cutoff: the session ends on its own below a set charge
 - "…and then": at the end of a session turn off the screen, lock, sleep, hibernate or shut down, always after a cancellable countdown; and 5 minutes before, a warning with "+30 min"
 - Global keyboard shortcuts to turn it on, off, and turn off the screen
-- Automatic rules: stay awake while a program is open, you're in a call, a full-screen app is showing, the PC is charging, an external monitor is connected, a download is running, the processor is busy, or during a time window. Each rule has its own mode and "…and then", the panel says why it's on, and rules pause for an hour with one click
+- Automatic rules: stay awake while a program is open, you're in a call, a full-screen app is showing, the PC is charging, an external monitor is connected, a download is running, the processor is busy, a USB drive is plugged in, you're on a given network, or during a time window. Each rule has its own mode and "…and then", the panel says why it's on, and rules pause for an hour with one click
 - Presence (optional, off by default): after a minute without input it presses F15, so no screen saver, idle lock or "Away" status. The idle lock exists for security: on work PCs this may break company rules
+- "Why won't it sleep? Why did it wake up?": Moka reads what Windows already knows (event log, devices that can wake it, sleep settings) and explains it in plain words; who keeps the PC awake comes from `powercfg /requests`, only when you ask and with administrator permission. From the tray menu: "Why won't it sleep?…"
 - Signed automatic updates, never during a session
 - `powercfg /requests` shows who is keeping the PC awake and why ("Moka: awake for 2 h, until 16:12")
 - Italian and English UI
@@ -117,8 +117,6 @@ Keep your Windows PC awake, in the spirit of [Amphetamine](https://apps.apple.co
 
 ### Planned
 
-- Diagnostics: why the PC won't sleep, or why it woke up
-- Rules for USB drives and Wi-Fi networks
 - Publishing on winget
 
 ### Command line

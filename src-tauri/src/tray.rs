@@ -177,6 +177,13 @@ impl TrayMenu {
             None
         };
         let open = MenuItem::with_id(app, "open", t(lang, "menu.open"), true, None::<&str>)?;
+        let diagnose = MenuItem::with_id(
+            app,
+            "diagnose",
+            t(lang, "menu.diagnose"),
+            true,
+            None::<&str>,
+        )?;
         let settings = MenuItem::with_id(
             app,
             "settings",
@@ -201,6 +208,7 @@ impl TrayMenu {
         items.extend([
             &sep_2 as &dyn tauri::menu::IsMenuItem<Wry>,
             &open,
+            &diagnose,
             &settings,
             &sep_3,
             &quit,

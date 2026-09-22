@@ -10,14 +10,29 @@ use windows::Win32::NetworkManagement::IpHelper::{
     FreeMibTable, GetIfTable2, IF_TYPE_SOFTWARE_LOOPBACK, MIB_IF_TABLE2,
 };
 use windows::Win32::NetworkManagement::Ndis::IfOperStatusUp;
+use windows::Win32::Networking::NetworkListManager::{
+    INetworkListManager, NetworkListManager, NLM_ENUM_NETWORK_CONNECTED,
+};
+use windows::Win32::Storage::FileSystem::{
+    BusTypeUsb, CreateFileW, GetDriveTypeW, GetLogicalDrives, FILE_FLAGS_AND_ATTRIBUTES,
+    FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+};
+use windows::Win32::System::Com::{
+    CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED,
+};
 use windows::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
+};
+use windows::Win32::System::Ioctl::{
+    PropertyStandardQuery, StorageDeviceProperty, IOCTL_STORAGE_QUERY_PROPERTY,
+    STORAGE_DEVICE_DESCRIPTOR, STORAGE_PROPERTY_QUERY,
 };
 use windows::Win32::System::Registry::{
     RegCloseKey, RegEnumKeyExW, RegGetValueW, RegOpenKeyExW, HKEY, HKEY_CURRENT_USER, KEY_READ,
     RRF_RT_REG_QWORD,
 };
 use windows::Win32::System::Threading::GetSystemTimes;
+use windows::Win32::System::IO::DeviceIoControl;
 use windows::Win32::UI::Shell::{
     SHQueryUserNotificationState, QUNS_BUSY, QUNS_PRESENTATION_MODE, QUNS_RUNNING_D3D_FULL_SCREEN,
 };
@@ -38,6 +53,9 @@ pub struct Seen {
     pub call: bool,
     pub net_kbps: Option<u32>,
     pub cpu_percent: Option<u32>,
+    pub usb: bool,
+    /// Reti connesse, in minuscolo.
+    pub networks: Option<HashSet<String>>,
 }
 
 /// Le sonde con memoria: velocità e carico sono differenze fra due letture.
@@ -71,6 +89,17 @@ impl Probes {
             seen.cpu_percent = self.cpu_percent();
         } else {
             self.cpu_prev = None;
+        }
+        if needs.usb {
+            seen.usb = usb_disk_present();
+        }
+        if needs.networks {
+            seen.networks = Some(
+                connected_networks()
+                    .into_iter()
+                    .map(|n| n.to_lowercase())
+                    .collect(),
+            );
         }
         seen
     }
@@ -274,6 +303,123 @@ unsafe fn in_use(key: HKEY, sub: PCWSTR) -> bool {
         (read(w!("LastUsedTimeStart")), read(w!("LastUsedTimeStop"))),
         (Some(start), Some(0)) if start > 0
     )
+}
+
+/// C'è un disco o una chiavetta USB collegati? Conta il **bus** del volume,
+/// non il tipo di unità: un disco esterno USB per Windows è "fisso" come
+/// quello interno, e un lettore di schede senza scheda non ha un volume da
+/// interrogare, quindi non conta.
+pub fn usb_disk_present() -> bool {
+    volumes().iter().any(|v| v.bus == Some(BusTypeUsb.0))
+}
+
+/// Un volume con una lettera: tipo di unità (2 rimovibile, 3 fissa…) e bus
+/// (`STORAGE_BUS_TYPE`: 7 USB, 17 NVMe, 11 SATA…), se si è potuto chiedere.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Volume {
+    pub letter: char,
+    pub drive_type: u32,
+    pub bus: Option<i32>,
+}
+
+pub fn volumes() -> Vec<Volume> {
+    let mask = unsafe { GetLogicalDrives() };
+    (0u8..26)
+        .filter(|i| mask & (1 << i) != 0)
+        .map(|i| {
+            let letter = char::from(b'A' + i);
+            let root = wide(&format!(r"{letter}:\"));
+            let drive_type = unsafe { GetDriveTypeW(PCWSTR(root.as_ptr())) };
+            // Rete, CD e RAM non hanno un bus che interessi (e aprirle può
+            // essere lento): solo unità rimovibili (2) e fisse (3).
+            let bus = (drive_type == 2 || drive_type == 3)
+                .then(|| bus_type(letter))
+                .flatten();
+            Volume {
+                letter,
+                drive_type,
+                bus,
+            }
+        })
+        .collect()
+}
+
+/// Una stringa per le API wide di Windows, con lo zero finale.
+fn wide(s: &str) -> Vec<u16> {
+    s.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
+fn bus_type(letter: char) -> Option<i32> {
+    let path = wide(&format!(r"\\.\{letter}:"));
+    unsafe {
+        // Accesso 0: basta per chiedere le proprietà, senza amministratore e
+        // senza svegliare il disco.
+        let handle = CreateFileW(
+            PCWSTR(path.as_ptr()),
+            0,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            None,
+            OPEN_EXISTING,
+            FILE_FLAGS_AND_ATTRIBUTES(0),
+            None,
+        )
+        .ok()?;
+        let query = STORAGE_PROPERTY_QUERY {
+            PropertyId: StorageDeviceProperty,
+            QueryType: PropertyStandardQuery,
+            ..Default::default()
+        };
+        let mut desc = STORAGE_DEVICE_DESCRIPTOR::default();
+        let mut returned = 0u32;
+        let ok = DeviceIoControl(
+            handle,
+            IOCTL_STORAGE_QUERY_PROPERTY,
+            Some(&query as *const _ as *const core::ffi::c_void),
+            std::mem::size_of::<STORAGE_PROPERTY_QUERY>() as u32,
+            Some(&mut desc as *mut _ as *mut core::ffi::c_void),
+            std::mem::size_of::<STORAGE_DEVICE_DESCRIPTOR>() as u32,
+            Some(&mut returned),
+            None,
+        )
+        .is_ok();
+        let _ = CloseHandle(handle);
+        ok.then_some(desc.BusType.0)
+    }
+}
+
+/// I nomi delle reti connesse, come li mostra Windows in Impostazioni → Rete
+/// (Wi-Fi o cavo). Dal Network List Manager e non dall'SSID del Wi-Fi: da
+/// Windows 11 24H2 l'SSID vuole il permesso di posizione (trappola 17), il
+/// nome della rete no. Verificato su LPT-MIKI senza alcun permesso.
+pub fn connected_networks() -> Vec<String> {
+    let mut out = Vec::new();
+    unsafe {
+        // Ogni thread di Moka che chiede le reti entra nell'appartamento
+        // multithread; se ne ha già uno, va bene quello.
+        let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+        let Ok(nlm) =
+            CoCreateInstance::<_, INetworkListManager>(&NetworkListManager, None, CLSCTX_ALL)
+        else {
+            return out;
+        };
+        let Ok(list) = nlm.GetNetworks(NLM_ENUM_NETWORK_CONNECTED) else {
+            return out;
+        };
+        loop {
+            let mut item = [None];
+            let mut fetched = 0u32;
+            if list.Next(&mut item, Some(&mut fetched)).is_err() || fetched == 0 {
+                break;
+            }
+            if let Some(name) = item[0].take().and_then(|n| n.GetName().ok()) {
+                let name = name.to_string();
+                if !name.is_empty() && !out.contains(&name) {
+                    out.push(name);
+                }
+            }
+        }
+    }
+    out
 }
 
 /// Byte ricevuti da ogni interfaccia di rete attiva (loopback esclusa).

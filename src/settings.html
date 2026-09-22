@@ -91,6 +91,21 @@
             <datalist id="rule-exe-list"></datalist>
             <small id="rule-exe-hint" data-i18n="settings.rule_program_hint"></small>
           </div>
+          <div class="field-block" id="rule-network-field" hidden>
+            <label for="rule-network" data-i18n="settings.rule_network"></label>
+            <input
+              type="text"
+              id="rule-network"
+              class="text-input"
+              list="rule-network-list"
+              spellcheck="false"
+              autocomplete="off"
+              maxlength="128"
+              aria-describedby="rule-network-hint"
+            />
+            <datalist id="rule-network-list"></datalist>
+            <small id="rule-network-hint" data-i18n="settings.rule_network_hint"></small>
+          </div>
           <div class="field" id="rule-kbps-field" hidden>
             <label for="rule-kbps" data-i18n="settings.rule_rate"></label>
             <select id="rule-kbps"></select>
@@ -240,10 +255,44 @@
         <p class="notice" id="update-status" role="status" hidden></p>
       </section>
 
-      <section class="card" aria-labelledby="check-title">
-        <h2 id="check-title" data-i18n="settings.section_check"></h2>
-        <p data-i18n="settings.check_body"></p>
-        <code class="cmd">powercfg /requests</code>
+      <section class="card" id="diagnose-card" aria-labelledby="diagnose-title">
+        <h2 id="diagnose-title" data-i18n="settings.section_diagnose"></h2>
+        <p class="hint diagnose-intro" data-i18n="settings.diagnose_intro"></p>
+        <div class="card-actions">
+          <button type="button" class="btn btn-small" id="diagnose-run" data-i18n="settings.diagnose_run"></button>
+        </div>
+        <p class="hint" id="diagnose-status" role="status" hidden></p>
+
+        <div class="diagnose" id="diagnose-out" hidden>
+          <h3 data-i18n="settings.diagnose_now"></h3>
+          <ul class="diag-list" id="diagnose-now"></ul>
+          <div class="card-actions">
+            <button type="button" class="btn btn-small" id="diagnose-admin" aria-describedby="diagnose-admin-hint">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3 5 6v5.5c0 4.4 3 8.3 7 9.5 4-1.2 7-5.1 7-9.5V6z" />
+              </svg>
+              <span data-i18n="settings.diagnose_who"></span>
+            </button>
+          </div>
+          <p class="hint" id="diagnose-admin-hint" data-i18n="settings.diagnose_who_hint"></p>
+          <p class="error" id="diagnose-error" role="alert" hidden></p>
+          <div id="diagnose-requests" hidden>
+            <ul class="diag-list" id="diagnose-requests-list"></ul>
+            <p class="hint" id="diagnose-requests-none" data-i18n="settings.diagnose_requests_none" hidden></p>
+            <p class="diag-subtitle" id="diagnose-timers-title" data-i18n="settings.diagnose_timers" hidden></p>
+            <pre class="diag-raw" id="diagnose-timers-raw" hidden></pre>
+          </div>
+
+          <h3 data-i18n="settings.diagnose_rests"></h3>
+          <ol class="diag-rests" id="diagnose-rests"></ol>
+          <p class="hint" id="diagnose-rests-empty" data-i18n="settings.diagnose_rests_empty" hidden></p>
+
+          <h3 data-i18n="settings.diagnose_wake"></h3>
+          <p class="diag-timers" id="diagnose-timers"></p>
+          <ul class="diag-list" id="diagnose-devices"></ul>
+          <p class="hint" id="diagnose-devices-none" data-i18n="settings.diagnose_devices_none" hidden></p>
+          <p class="hint" data-i18n="settings.diagnose_devices_hint"></p>
+        </div>
       </section>
 
       <footer class="about" aria-labelledby="about-title">

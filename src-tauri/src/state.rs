@@ -629,6 +629,8 @@ impl Core {
             external_monitors: self.lid.externals,
             net_kbps: seen.net_kbps,
             cpu_percent: seen.cpu_percent,
+            usb: seen.usb,
+            networks: seen.networks,
             weekday: local.weekday().num_days_from_monday() as u8,
             minute: (local.hour() * 60 + local.minute()) as u16,
         };

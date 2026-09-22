@@ -58,8 +58,16 @@
           Solo se crei una regola, e solo ciò che quella regola chiede, ogni 5 secondi: i nomi dei programmi in esecuzione,
           se un'app è a schermo intero, se microfono o webcam sono in uso (da ciò che Windows stesso annota, senza mai
           ascoltare o guardare niente), quanti byte arrivano dalla rete (non cosa, né da dove) e quanto è occupato il
-          processore. Queste letture non vengono salvate né inviate: servono solo a decidere se tenere acceso il PC. Nelle
-          impostazioni resta soltanto la regola che hai scritto.
+          processore, se è collegato un disco USB, i nomi delle reti a cui sei connesso. Queste letture non vengono salvate
+          né inviate: servono solo a decidere se tenere acceso il PC. Nelle impostazioni resta soltanto la regola che hai
+          scritto.
+        </p>
+        <p>
+          Solo quando premi «Controlla» nella diagnostica, Moka legge dal registro eventi di Windows quando il PC è andato
+          in standby o in sospensione e perché si è svegliato, quali dispositivi possono svegliarlo e le impostazioni di
+          sospensione. Solo se premi «Mostra chi lo tiene sveglio» e confermi la richiesta dell'amministratore, esegue
+          <code>powercfg /requests</code> e <code>powercfg /waketimers</code>. Il risultato si vede nella finestra e non
+          viene salvato né inviato.
         </p>
         <p>
           Solo se attivi la Presenza, Moka preme il tasto F15 quando non tocchi niente da un minuto. Non registra cosa
@@ -129,8 +137,15 @@
           Only if you create a rule, and only what that rule needs, every 5 seconds: the names of the running programs,
           whether an app is full screen, whether the microphone or webcam is in use (from what Windows itself records,
           never listening to or watching anything), how many bytes arrive from the network (not what, nor from where)
-          and how busy the processor is. These readings are neither saved nor sent: they only decide whether to keep the
-          PC awake. The settings keep only the rule you wrote.
+          how busy the processor is, whether a USB drive is plugged in, and the names of the networks you're connected
+          to. These readings are neither saved nor sent: they only decide whether to keep the PC awake. The settings keep
+          only the rule you wrote.
+        </p>
+        <p>
+          Only when you press “Check” in the diagnostics, Moka reads from the Windows event log when the PC went into
+          standby or sleep and why it woke up, which devices can wake it and the sleep settings. Only if you press “Show
+          who keeps it awake” and confirm the administrator prompt, it runs <code>powercfg /requests</code> and
+          <code>powercfg /waketimers</code>. The result is shown in the window and is neither saved nor sent.
         </p>
         <p>
           Only if you turn on Presence, Moka presses the F15 key after a minute without input. It doesn't record what you

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-09-22 — 0.0.5: diagnostica, regole su USB e rete, meno memoria
+
+- **"Perché non dorme? Perché si è svegliato?"**: una scheda nelle Impostazioni e la voce "Perché non dorme?…" nel menu della tray.
+  - Senza amministratore legge il registro eventi (standby moderno, sospensione, ibernazione), i dispositivi che possono svegliare il PC e le impostazioni di sospensione, e li spiega a parole. I motivi sono codici di Windows tradotti da Moka, quindi non dipendono dalla lingua del sistema.
+  - Mette in cima le cause più comuni: "sospensione: mai" e l'audio aperto che tiene attivo lo standby.
+  - "Mostra chi lo tiene sveglio" esegue `powercfg /requests` e `/waketimers` con il prompt dell'amministratore, solo se lo chiedi.
+- **Regole nuove**: disco USB collegato (dal bus del volume, anche per i dischi esterni che Windows chiama "fissi") e rete connessa (il nome come lo mostra Windows, Wi-Fi o cavo, senza il permesso di posizione).
+- **Meno memoria**: a pannello nascosto WebView2 tiene meno RAM (95 MB di working set invece di 138 su LPT-MIKI).
+- La scheda "Verifica" è sostituita dalla diagnostica. Sito e privacy aggiornati.
+- `spike diagnose`: ciò che la diagnostica legge, per confrontarlo con `powercfg`.
+- Verificato su LPT-MIKI: diagnostica sui dati veri della macchina, regola di rete, bus dei volumi, memoria, contrasti (dettagli in `test.md`). Da provare con le mani: il prompt dell'amministratore, la voce del menu, un disco USB vero, il Wi-Fi.
+
 ## 2026-09-22 — sito: header e footer allineati alla struttura reale di ClipVault/MD-Viewer
 
 Solo `site/`, nessun cambio all'app. Il giro precedente aveva rifatto lo stile (font, colori, componenti) ma non tutta la struttura: header e footer restavano nel vecchio impianto (`.site-header`/`.site-footer`, niente `.wrap`/`.footer-row`), non nel sistema a due blocchi flex di ClipVault/MD-Viewer.

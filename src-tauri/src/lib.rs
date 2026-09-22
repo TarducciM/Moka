@@ -3,6 +3,7 @@
 pub mod actions;
 pub mod capabilities;
 pub mod cli;
+pub mod diagnose;
 pub mod i18n;
 pub mod lid;
 pub mod lidoverride;
@@ -105,6 +106,9 @@ pub fn run() {
             commands::check_updates,
             commands::install_update,
             commands::list_processes,
+            commands::list_networks,
+            commands::diagnose,
+            commands::diagnose_requests,
             commands::add_rule,
             commands::update_rule,
             commands::delete_rule,
@@ -177,6 +181,10 @@ pub fn run() {
                 .build(app)?;
 
             control::request_refresh(&handle, true);
+            // Il pannello nasce nascosto: memoria bassa da subito.
+            if let Some(win) = handle.get_webview_window(popover::LABEL) {
+                popover::set_memory_low(&win, true);
+            }
             spawn_ticker(handle.clone());
             {
                 let h = handle.clone();
@@ -290,6 +298,14 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
             let app = app.clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(err) = commands::show_settings(app) {
+                    eprintln!("moka: impostazioni non aperte: {err}");
+                }
+            });
+        }
+        "diagnose" => {
+            let app = app.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(err) = commands::show_settings_at(app, "diagnose") {
                     eprintln!("moka: impostazioni non aperte: {err}");
                 }
             });

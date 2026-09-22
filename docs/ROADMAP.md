@@ -1,6 +1,6 @@
 # Moka — piano di progetto
 
-> **Stato: sviluppo, 0.0.4.** Tutto il codice fino alla 0.4 (regole automatiche e Presenza) è scritto e provato su LPT-MIKI; la pubblicazione della prima release aspetta lo spike e i passi di Michele in [`RELEASE.md`](RELEASE.md). In dettaglio: Il nucleo della 0.1 e tutta la parte della 0.2 che non dipende dallo spike sono scritti e verificati su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md). Lo spike decide **quali richieste** tenere a coperchio chiuso, non come si cambia e si rimette l'impostazione di Windows, che è già fatto e provato.
+> **Stato: sviluppo, 0.0.5.** Tutto il codice fino alla 0.5 (diagnostica, regole su USB e rete, memoria del pannello) è scritto e provato su LPT-MIKI; la pubblicazione della prima release aspetta lo spike e i passi di Michele in [`RELEASE.md`](RELEASE.md). In dettaglio: Il nucleo della 0.1 e tutta la parte della 0.2 che non dipende dallo spike sono scritti e verificati su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md). Lo spike decide **quali richieste** tenere a coperchio chiuso, non come si cambia e si rimette l'impostazione di Windows, che è già fatto e provato.
 >
 > Questo file è il punto di ripresa: chi riprende il lavoro, da qualunque PC, parte da qui. Va aggiornato a ogni passaggio significativo, insieme a `CHANGELOG.md`.
 >
@@ -54,7 +54,7 @@ Serve un PC Windows con la toolchain Tauri. **Il primo comando è `hostname`**, 
 | Data | Macchina (`hostname`) | Rust | Cosa è stato fatto |
 |---|---|---|---|
 | 2026-09-21 | PC-MIKY | no | solo progettazione, nessun codice |
-| 2026-09-22 | LPT-MIKI (Acer Nitro ANV16S-41, portatile, standby moderno connesso, niente S3) | 1.98, MSVC, VS Build Tools 2022, Node 24, WebView2 153 | pianificazione chiusa, check della macchina, nucleo della 0.1, CI, strumento per lo spike; poi 0.0.2: coperchio (modifica e ripristino, scrivania, zaino), eventi di sistema, soglia batteria; 0.0.3: "…e poi", installer, aggiornamenti, sito; 0.0.4: regole automatiche e Presenza |
+| 2026-09-22 | LPT-MIKI (Acer Nitro ANV16S-41, portatile, standby moderno connesso, niente S3) | 1.98, MSVC, VS Build Tools 2022, Node 24, WebView2 153 | pianificazione chiusa, check della macchina, nucleo della 0.1, CI, strumento per lo spike; poi 0.0.2: coperchio (modifica e ripristino, scrivania, zaino), eventi di sistema, soglia batteria; 0.0.3: "…e poi", installer, aggiornamenti, sito; 0.0.4: regole automatiche e Presenza; 0.0.5: diagnostica, regole USB e rete, memoria del pannello |
 
 ---
 
@@ -123,6 +123,35 @@ Serve un PC Windows con la toolchain Tauri. **Il primo comando è `hostname`**, 
 | Suggerimenti nel modulo | I programmi con una finestra visibile, meno quelli che ospitano la shell (`applicationframehost.exe`, `textinputhost.exe`…): il campo resta libero, l'elenco è solo un aiuto. |
 | Presenza | Controllo ogni 10 s: F15 solo se Moka sta tenendo sveglio il PC e l'utente è fermo da almeno 50 s. Spenta di default, con l'avviso obbligatorio accanto all'interruttore. |
 
+### Decisioni prese scrivendo la diagnostica (0.0.5, 2026-09-22)
+
+| Tema | Decisione |
+|---|---|
+| Da dove si legge | Quasi tutto **senza amministratore**: il registro eventi di sistema (`Kernel-Power` 506/507 per lo standby moderno, `Power-Troubleshooter` 1 per sospensione e ibernazione) letto come XML con `EvtQuery`; i dispositivi con `DevicePowerEnumDevices` (la fonte di `powercfg /devicequery wake_armed`); le impostazioni di sospensione dello schema attivo. Niente processi da lanciare, niente testo di Windows da interpretare. |
+| La lingua di Windows | I motivi di entrata e uscita dallo standby sono **codici** (`POWER_MONITOR_REQUEST_REASON`): Moka li traduce da sé. Solo quelli di cui è sicura; gli altri restano "motivo n. X di Windows", invece di un'ipotesi. |
+| Chi tiene sveglio adesso | Solo `powercfg /requests` lo sa, e vuole l'amministratore. Si esegue **solo** quando l'utente preme "Mostra chi lo tiene sveglio", con il prompt di Windows, insieme a `/waketimers` (un prompt per entrambi). L'uscita va su file temporanei, cancellati subito dopo. Categorie (`SYSTEM:`) e tipi (`[PROCESS]`) non sono tradotti da Windows: il parser guarda solo quelli e ignora le righe "nessuno" di ogni lingua. Senza `SYSTEM:` nell'uscita non risponde "nessuno": dice che Windows non ha risposto. |
+| Cosa dice senza amministratore | Lo stato di esecuzione del sistema (senza nomi) basta per "un altro programma chiede di tenerlo sveglio", quando Moka è spenta. |
+| Le cause più comuni, in cima | "Sospensione dopo: mai" e l'audio aperto negli standby (dal campo `AudioPlaying` e dal tempo a basso consumo dell'evento 507) si segnalano come probabili risposte. Su LPT-MIKI sono uscite entrambe, vere. |
+| Dove sta | Una scheda delle Impostazioni (al posto di "Verifica") e la voce "Perché non dorme?…" nel menu della tray, che apre le Impostazioni già lì e fa il controllo. |
+| Rumore | Gli standby sotto il minuto non si elencano; si mostrano gli ultimi 8. |
+
+### Decisioni prese per le regole USB e rete (0.0.5)
+
+| Tema | Decisione |
+|---|---|
+| Disco USB | Conta il **bus** del volume (`IOCTL_STORAGE_QUERY_PROPERTY`, `BusTypeUsb`), non il tipo di unità: un disco esterno USB per Windows è "fisso". Il volume si apre con accesso 0 (niente amministratore, niente disco svegliato). Un lettore di schede vuoto non ha un volume da interrogare, quindi non conta. Un solo tipo di regola, "un disco USB qualsiasi": la chiavetta precisa si aggiungerà se qualcuno la chiede. |
+| Rete | Il nome **come lo mostra Windows** (Network List Manager), Wi-Fi o cavo, confrontato senza maiuscole. Non l'SSID: da Windows 11 24H2 leggerlo vuole il permesso di posizione (trappola 17), il nome della rete no. Resta vera 30 s dopo la disconnessione, per i Wi-Fi che cadono e si riconnettono. |
+
+### Memoria del pannello (0.0.5)
+
+Quando il pannello è nascosto Moka chiede a WebView2 `MemoryUsageTargetLevel = Low` (da WebView2 114; prima non fa niente) e lo rimette normale prima di mostrarlo. È la prima delle due strade annotate sotto per la 0.0.1. Misurato su LPT-MIKI, processi WebView2 di Moka a pannello nascosto:
+
+- 0.0.5: **95 MB** di working set (88 subito dopo averlo nascosto; 254 a pannello aperto);
+- 0.0.3 nascosta da ore, senza la chiamata: 138 MB;
+- memoria privata invariata, ~103 MB per entrambe: WebView2 restituisce la RAM fisica, non quella allocata.
+
+La seconda strada (creare il pannello solo quando si apre) resta da valutare: costerebbe qualche decimo di secondo a ogni apertura, per circa 100 MB di memoria privata.
+
 **Misure della build di release 0.0.1** (LPT-MIKI, 2026-09-22):
 
 - eseguibile 3,5 MB; installer NSIS 1,3 MB; MSI 1,8 MB;
@@ -149,6 +178,7 @@ Il "check veloce" prima di scrivere codice, fatto sulla macchina e non a memoria
 | Moka 0.0.1 in funzione | CLI inoltrata all'istanza aperta, scadenza, rilascio dopo chiusura forzata, ripresa, `--quit`, Impostazioni, lingua, contrasti: tutto in `test.md` | `test.md` |
 | Monitor esterni | **2** (due 2560×1440; il pannello interno non risulta attivo) | `spike info` |
 | Moka 0.0.2, coperchio | Modifica "solo in carica" e "anche a batteria", ritorno com'era a fine sessione, all'uscita e con "Ripristina ora"; crash con `RunOnce` e con la riapertura; scelta dell'utente rispettata; modalità scrivania senza sessione. Tutto provato sull'impostazione **vera**, letta ogni volta con `spike info`: dettagli in `test.md` | `test.md` |
+| Diagnostica (0.0.5) | 200 eventi di standby e sospensione letti in 45 ms senza amministratore; dispositivi che possono svegliarlo identici a `powercfg /devicequery wake_armed`; sospensione "mai" in carica e 2 h a batteria, come `powercfg /qh`. E una scoperta: in **tutti** gli ultimi standby il PC è rimasto attivo (0% a basso consumo) con un audio aperto | `spike diagnose` |
 | Sonde delle regole (0.0.4) | Processi (~195), programmi con finestra, velocità di download e carico del processore letti ogni 5 s; schermo intero e chiamata "no" a riposo. ⚠️ Con un desktop remoto aperto (RustDesk, TeamViewer) entrano ~1 MB/s **continui**: la regola sul download a 1 MB/s risulta vera (trappola 47) | `spike probes --seconds 60` |
 
 ---
@@ -189,8 +219,8 @@ Se il PC si è sospeso comunque durante la sessione (coperchio chiuso, tasto di 
 | Download in corso | Contatori delle interfacce di rete (`GetIfTable2`), soglia 100 KB/s, 500 KB/s, 1 MB/s o 5 MB/s | Vale l'interfaccia più veloce, non la somma (trappola 46); finisce dopo 2 minuti sotto soglia |
 | CPU occupata | `GetSystemTimes`, soglia 25, 50 o 75% | Render, compilazioni; finisce dopo 2 minuti sotto soglia |
 | Fascia oraria | Giorni della settimana + orari | Es. lun-ven 9-18 |
-| Disco USB collegato | Volumi rimovibili (`WM_DEVICECHANGE`) | 0.5 |
-| Rete Wi-Fi | Vedi trappola 17 | 0.5, da verificare |
+| Disco USB collegato | Bus dei volumi (`IOCTL_STORAGE_QUERY_PROPERTY`) | 0.5; non ancora provato con un disco vero |
+| Rete connessa | Nome della rete dal Network List Manager, Wi-Fi o cavo | 0.5; vedi trappola 17 |
 
 **Stato effettivo** = sessione manuale + regole attive. Vale la modalità più "forte" (schermo acceso batte solo PC).
 
@@ -212,7 +242,7 @@ Effetto: il contatore di inattività di Windows riparte, quindi niente salvasche
 - Testo in app, obbligatorio: *"Il blocco per inattività esiste per sicurezza: sui PC di lavoro questa opzione può violare le regole aziendali."*
 - Verificato su LPT-MIKI che F15 azzera davvero il contatore di inattività di Windows (`spike probes`: sale fino a 50 s, al controllo dopo torna a 0). **Da verificare** che non faccia niente nelle app più comuni e che tenga "presente" Teams. Alternativa, se servisse: spostare il mouse di un pixel e riportarlo indietro.
 
-### Diagnostica: "Perché il PC non dorme / si è svegliato?" (0.5)
+### Diagnostica: "Perché il PC non dorme / si è svegliato?" (0.5, fatta: vedi le decisioni della 0.0.5)
 
 Su richiesta, con il prompt UAC, esegue:
 
@@ -503,9 +533,11 @@ Ogni passaggio: bump di patch più voce nel `CHANGELOG`. Minor alle tappe qui so
 
 ### 0.5.0 — diagnostica e rifiniture
 
-- [ ] Diagnostica "perché non dorme / perché si è svegliato"
-- [ ] Regole: disco USB, rete Wi-Fi
-- [ ] (forse) Statistiche locali: quante ore sveglio, e perché
+- [x] Diagnostica "perché non dorme / perché si è svegliato": registro eventi, dispositivi, impostazioni di sospensione senza amministratore; `powercfg /requests` e `/waketimers` con il prompt, solo su richiesta; scheda nelle Impostazioni e voce nel menu della tray
+- [x] Regole: disco USB, rete connessa (Wi-Fi o cavo)
+- [x] Memoria del pannello nascosto (`MemoryUsageTargetLevel`)
+- [ ] (forse, rimandate) Statistiche locali: quante ore sveglio, e perché. Non servono a nessuna decisione dell'utente oggi; la diagnostica copre già il "perché"
+- [ ] Le righe 0.0.5 aperte di `test.md`: "Mostra chi" con il prompt vero, voce del menu, disco USB vero, rete Wi-Fi
 
 ### 1.0.0
 
@@ -603,8 +635,8 @@ Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
 14. `SendMessage(HWND_BROADCAST, WM_SYSCOMMAND, SC_MONITORPOWER, 2)` può bloccarsi se una finestra non risponde: usare `PostMessage` o `SendMessageTimeout`.
 15. L'eseguibile è GUI (`windows_subsystem = "windows"`), quindi niente stdout sul terminale. Per ora i comandi da riga di comando non danno output. Un `moka status` con risposta richiede un piccolo binario console separato oppure `AttachConsole`: da valutare.
 16. Icona nella tray: la barra di Windows 10/11 può essere chiara o scura. Leggere `SystemUsesLightTheme` e cambiare variante al volo su `WM_SETTINGCHANGE`.
-17. Wi-Fi: da Windows 11 24H2 leggere il nome della rete (SSID) richiederebbe il permesso di posizione (**da verificare**). Alternativa possibile: il nome del profilo di rete tramite Network List Manager.
-18. `powercfg /requests` richiede l'amministratore, e l'output potrebbe essere localizzato: il parsing va provato su Windows in italiano e in inglese.
+17. Wi-Fi: da Windows 11 24H2 leggere il nome della rete (SSID) richiede il permesso di posizione. **Risolta** (0.0.5): il Network List Manager dà il nome della rete come lo mostra Windows senza nessun permesso, e vale anche per il cavo. Verificato su LPT-MIKI (Windows 11 26200) sulla rete via cavo; col Wi-Fi da riprovare.
+18. `powercfg /requests` richiede l'amministratore, e l'output potrebbe essere localizzato. Le categorie (`SYSTEM:`) e i tipi (`[PROCESS]`) non lo sono: il parser (0.0.5) guarda solo quelli. Da provare con il prompt vero su Windows in italiano. Il resto della diagnostica evita `powercfg` e legge le API.
 19. Sulle tastiere italiane Ctrl+Alt equivale ad AltGr: nessuna combinazione Ctrl+Alt come tasto rapido predefinito.
 20. Le notifiche toast con pulsanti richiedono un AppUserModelID registrato (lo registra l'installer). Verificare cosa supporta davvero `tauri-plugin-notification` su Windows; in ogni caso il clic sulla notifica deve aprire il popover.
 21. i18n: una chiave mancante non dà errori, mostra la chiave stessa a schermo. Serve un controllo in CI che italiano e inglese abbiano le stesse chiavi e che ogni `data-i18n` esista.
@@ -638,6 +670,16 @@ Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
 43. `createUpdaterArtifacts: true` nella configurazione normale fa fallire ogni `tauri build` senza la chiave privata (anche in locale e nel workflow `build`). Sta in `tauri.release.conf.json`, usato solo dalla release.
 44. La classe `.toast` esisteva già (il messaggio "Salvato" delle Impostazioni, fisso e trasparente): la finestrella degli avvisi la ereditava e restava invisibile. Lezione generale: un foglio di stile condiviso fra più pagine vuole nomi di classe che non si pestino.
 45. `focusable: false` nella configurazione della finestra la mostra senza rubare il focus a chi sta scrivendo: giusto per un avviso che compare da solo.
+
+### Trovate scrivendo la 0.0.5 (2026-09-22)
+
+53. In Git Bash `powercfg /lastwake` risponde "Parametri non validi": MSYS riscrive `/lastwake` come un percorso. Serve `MSYS_NO_PATHCONV=1` (come per `adb` nel mega-repo).
+54. Sui PC con standby moderno `powercfg /lastwake` è **vuoto** ("Conteggio cronologia riattivazioni - 0"): i risvegli stanno solo negli eventi `Kernel-Power` 507, con il motivo come codice.
+55. `Kernel-Power` 506 e 507 non si accoppiano con `ScenarioInstanceId` (sull'uscita è un altro numero) ma con `ScenarioInstanceIdV2`, uguale sui due eventi.
+56. `wevtutil` e `EvtRender` scrivono gli attributi XML fra apici singoli, gli esempi della documentazione fra doppi: il parser accetta entrambi.
+57. Un disco esterno USB per `GetDriveType` è "fisso" come quello interno: per riconoscerlo serve il bus del volume.
+58. Con `A && B; C` in Bash, se A fallisce B non parte e C sì: un `moka --quit` saltato così sembra un `--quit` che non funziona.
+59. Uno script Python dentro un heredoc Bash trasforma `\\0` in un carattere NUL vero dentro il sorgente Rust. Per le stringhe con barre rovesciate: `r"..."` in Rust e il file scritto direttamente, non passato da una shell.
 
 ### Trovate scrivendo la 0.0.4 (2026-09-22)
 

@@ -2265,7 +2265,7 @@ dependencies = [
 
 [[package]]
 name = "moka"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "chrono",
  "serde",
@@ -2278,6 +2278,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
+ "webview2-com",
  "windows",
 ]
 

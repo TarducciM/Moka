@@ -195,6 +195,8 @@ pub fn rule_reason(lang: Lang, kind: &crate::rules::RuleKind) -> String {
             "rules.schedule",
             &[("from", &hhmm(*from)), ("to", &hhmm(*to))],
         ),
+        K::Usb => t(lang, "rules.usb"),
+        K::Network { name } => tv(lang, "rules.network", &[("name", name)]),
     }
 }
 
@@ -212,6 +214,8 @@ pub fn rule_title(lang: Lang, kind: &crate::rules::RuleKind) -> String {
             K::Download { .. } => "settings.rule_kind_download",
             K::Cpu { .. } => "settings.rule_kind_cpu",
             K::Schedule { .. } => "settings.rule_kind_schedule",
+            K::Usb => "settings.rule_kind_usb",
+            K::Network { .. } => "settings.rule_kind_network",
         },
     )
 }
@@ -221,6 +225,7 @@ pub fn rule_detail(lang: Lang, kind: &crate::rules::RuleKind) -> String {
     use crate::rules::RuleKind as K;
     match kind {
         K::Process { exe } => exe.clone(),
+        K::Network { name } => name.clone(),
         K::Pid { pid } => format!("pid {pid}"),
         K::Download { kbps } => tv(lang, "rules.detail_kbps", &[("rate", &rate_label(*kbps))]),
         K::Cpu { percent } => tv(

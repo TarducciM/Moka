@@ -38,6 +38,11 @@ pub enum RuleKind {
     /// `to` (minuti dalla mezzanotte). Se `from` > `to` la fascia scavalca la
     /// mezzanotte e appartiene al giorno in cui comincia.
     Schedule { days: u8, from: u16, to: u16 },
+    /// Un disco o una chiavetta USB è collegato (backup, copie lunghe).
+    Usb,
+    /// Il PC è connesso alla rete con questo nome, come la mostra Windows
+    /// (Wi-Fi o cavo). Il confronto non guarda maiuscole e minuscole.
+    Network { name: String },
     /// Solo da riga di comando (`--while-pid`): un processo preciso.
     Pid { pid: u32 },
 }
@@ -70,11 +75,23 @@ pub fn normalize_exe(name: &str) -> Option<String> {
     })
 }
 
+/// Il nome di una rete: spazi ai lati tolti, non vuoto, niente caratteri di
+/// controllo, al massimo 128 caratteri (i nomi Wi-Fi arrivano a 32 byte, i
+/// profili di Windows qualcosa di più).
+pub fn normalize_network(name: &str) -> Option<String> {
+    let name = name.trim();
+    (!name.is_empty() && name.chars().count() <= 128 && !name.chars().any(char::is_control))
+        .then(|| name.to_owned())
+}
+
 /// Una regola arrivata da fuori (file, pagina) è valida solo se il codice
 /// avrebbe potuto scriverla.
 pub fn validate(kind: RuleKind) -> Option<RuleKind> {
     match kind {
         RuleKind::Process { exe } => normalize_exe(&exe).map(|exe| RuleKind::Process { exe }),
+        RuleKind::Network { name } => {
+            normalize_network(&name).map(|name| RuleKind::Network { name })
+        }
         RuleKind::Download { kbps } => DOWNLOAD_CHOICES
             .contains(&kbps)
             .then_some(RuleKind::Download { kbps }),
@@ -137,6 +154,9 @@ pub struct Observation {
     pub external_monitors: u32,
     pub net_kbps: Option<u32>,
     pub cpu_percent: Option<u32>,
+    pub usb: bool,
+    /// Nomi delle reti connesse, in minuscolo.
+    pub networks: Option<HashSet<String>>,
     /// 0 = lunedì … 6 = domenica.
     pub weekday: u8,
     /// Minuti dalla mezzanotte, ora locale.
@@ -151,6 +171,8 @@ pub struct Needs {
     pub call: bool,
     pub net: bool,
     pub cpu: bool,
+    pub usb: bool,
+    pub networks: bool,
 }
 
 pub fn needs<'a>(rules: impl IntoIterator<Item = &'a Rule>) -> Needs {
@@ -162,6 +184,8 @@ pub fn needs<'a>(rules: impl IntoIterator<Item = &'a Rule>) -> Needs {
             RuleKind::Call => n.call = true,
             RuleKind::Download { .. } => n.net = true,
             RuleKind::Cpu { .. } => n.cpu = true,
+            RuleKind::Usb => n.usb = true,
+            RuleKind::Network { .. } => n.networks = true,
             RuleKind::Plugged | RuleKind::Monitor | RuleKind::Schedule { .. } => {}
         }
     }
@@ -182,6 +206,11 @@ pub fn holds(kind: &RuleKind, o: &Observation) -> bool {
         RuleKind::Schedule { days, from, to } => {
             in_schedule(*days, *from, *to, o.weekday, o.minute)
         }
+        RuleKind::Usb => o.usb,
+        RuleKind::Network { name } => o
+            .networks
+            .as_ref()
+            .is_some_and(|n| n.contains(&name.to_lowercase())),
     }
 }
 
@@ -202,11 +231,12 @@ fn in_schedule(days: u8, from: u16, to: u16, weekday: u8, minute: u16) -> bool {
 /// a ondate (una pausa fra due file, un attimo di calma in una
 /// compilazione): senza un po' di pazienza la regola si accenderebbe e
 /// spegnerebbe di continuo. Il microfono si spegne anche solo per un attimo
-/// quando si cambia dispositivo in una chiamata.
+/// quando si cambia dispositivo in una chiamata, e il Wi-Fi cade e si
+/// riconnette in pochi secondi.
 pub fn linger_ms(kind: &RuleKind) -> u64 {
     match kind {
         RuleKind::Download { .. } | RuleKind::Cpu { .. } => 120_000,
-        RuleKind::Call => 30_000,
+        RuleKind::Call | RuleKind::Network { .. } => 30_000,
         _ => 0,
     }
 }
@@ -297,6 +327,46 @@ mod tests {
     }
 
     #[test]
+    fn usb_rule() {
+        let mut o = obs();
+        assert!(!holds(&RuleKind::Usb, &o));
+        o.usb = true;
+        assert!(holds(&RuleKind::Usb, &o));
+    }
+
+    #[test]
+    fn network_rule_ignores_case_and_lingers() {
+        let r = rule(
+            1,
+            RuleKind::Network {
+                name: "Casa Rossi".into(),
+            },
+        );
+        let mut o = obs();
+        assert!(!holds(&r.kind, &o), "reti non osservate: non vale");
+        o.networks = Some(["casa rossi".to_owned()].into());
+        assert!(holds(&r.kind, &o));
+        let mut e = Engine::default();
+        assert_eq!(e.evaluate([&r], &o, 0), vec![1]);
+        // Il Wi-Fi cade e si riconnette: per 30 s resta attiva.
+        o.networks = Some(HashSet::new());
+        assert_eq!(e.evaluate([&r], &o, 29_999), vec![1]);
+        assert!(e.evaluate([&r], &o, 30_000).is_empty());
+    }
+
+    #[test]
+    fn network_names() {
+        assert_eq!(
+            normalize_network("  WiFi-Casa ").as_deref(),
+            Some("WiFi-Casa")
+        );
+        assert_eq!(normalize_network("   "), None);
+        assert_eq!(normalize_network("a\u{7}b"), None);
+        assert_eq!(normalize_network(&"é".repeat(129)), None);
+        assert!(normalize_network(&"é".repeat(128)).is_some());
+    }
+
+    #[test]
     fn schedule_same_day() {
         // lun-ven 9-18
         let k = RuleKind::Schedule {
@@ -379,6 +449,9 @@ mod tests {
         ];
         let n = needs(&rules);
         assert!(n.processes && n.cpu && !n.net && !n.call && !n.fullscreen);
+        assert!(!n.usb && !n.networks);
+        let n = needs(&[rule(3, RuleKind::Usb)]);
+        assert!(n.usb && !n.processes);
     }
 
     #[test]

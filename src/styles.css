@@ -748,14 +748,6 @@ svg {
   font-size: 12px;
 }
 
-.cmd {
-  display: inline-block;
-  border-radius: 6px;
-  background: var(--track);
-  padding: 4px 10px;
-  font-family: "Cascadia Mono", Consolas, monospace;
-  user-select: all;
-}
 
 .about {
   color: var(--muted);
@@ -1041,6 +1033,109 @@ svg {
   width: 16px;
   height: 16px;
   margin-top: 2px;
+}
+
+/* -------------------------------------------------------------- diagnostica */
+
+.diagnose-intro {
+  margin: -6px 0 10px;
+}
+
+.diagnose h3 {
+  margin: 16px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.diagnose h3:first-child {
+  margin-top: 12px;
+}
+
+.diag-list,
+.diag-rests {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.diag-list li,
+.diag-rests li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-left: 3px solid var(--border);
+  padding: 4px 0 4px 10px;
+  margin-bottom: 6px;
+}
+
+/* Il bordo dice "probabilmente è questo": è un indicatore, vuole 3:1 anche
+   in scuro, e --accent lì misura 2,4:1. */
+.diag-list li.is-warn {
+  border-left-color: var(--accent-text);
+}
+
+.diag-list li.is-moka {
+  border-left-color: var(--muted);
+}
+
+.diag-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.diag-kind {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.diag-text {
+  overflow-wrap: anywhere;
+}
+
+.diag-note {
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.diag-timers {
+  margin: 0 0 6px;
+}
+
+.diag-subtitle {
+  margin: 10px 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.diag-raw {
+  margin: 0;
+  border-radius: 6px;
+  background: var(--track);
+  padding: 8px 10px;
+  font: 12px/1.45 "Cascadia Mono", Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#diagnose-admin {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#diagnose-admin svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn[aria-busy="true"] {
+  cursor: progress;
+  opacity: 0.7;
 }
 
 @media (prefers-reduced-motion: reduce) {

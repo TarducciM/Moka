@@ -29,6 +29,7 @@
   const ruleForm = $("rule-form");
   const ruleKind = $("rule-kind");
   const ruleExe = $("rule-exe");
+  const ruleNetwork = $("rule-network");
   const ruleKbps = $("rule-kbps");
   const ruleCpu = $("rule-cpu");
   const ruleDays = $("rule-days");
@@ -38,6 +39,7 @@
   const ruleThen = $("rule-then");
   const ruleError = $("rule-error");
   let toastTimer = null;
+  let diagnosing = false;
   let rulesKey = "";
   let daysKey = "";
 
@@ -212,6 +214,20 @@
     return li;
   }
 
+  function suggest(command, listId) {
+    invoke(command)
+      .then((names) => {
+        $(listId).replaceChildren(
+          ...names.map((name) => {
+            const option = document.createElement("option");
+            option.value = name;
+            return option;
+          }),
+        );
+      })
+      .catch(() => {});
+  }
+
   // "Niente" da solo non dice niente: ogni tendina ha la sua etichetta visibile.
   function labeled(key, select) {
     const wrap = document.createElement("label");
@@ -236,6 +252,7 @@
   function showKindFields() {
     const kind = ruleKind.value;
     $("rule-exe-field").hidden = kind !== "process";
+    $("rule-network-field").hidden = kind !== "network";
     $("rule-kbps-field").hidden = kind !== "download";
     $("rule-cpu-field").hidden = kind !== "cpu";
     $("rule-schedule-field").hidden = kind !== "schedule";
@@ -254,6 +271,10 @@
       case "process":
         rule.exe = ruleExe.value.trim();
         if (!rule.exe) return { error: I18n.t("settings.rule_invalid"), focus: ruleExe };
+        break;
+      case "network":
+        rule.name = ruleNetwork.value.trim();
+        if (!rule.name) return { error: I18n.t("settings.rule_invalid"), focus: ruleNetwork };
         break;
       case "download":
         rule.kbps = Number(ruleKbps.value);
@@ -286,6 +307,7 @@
     ruleError.hidden = !text;
     ruleError.textContent = text || "";
     ruleExe.toggleAttribute("aria-invalid", Boolean(text) && focus === ruleExe);
+    ruleNetwork.toggleAttribute("aria-invalid", Boolean(text) && focus === ruleNetwork);
     if (focus) focus.focus();
   }
 
@@ -298,18 +320,10 @@
       return;
     }
     ruleKind.focus();
-    // I programmi aperti adesso, come suggerimenti: il campo resta libero.
-    invoke("list_processes")
-      .then((names) => {
-        $("rule-exe-list").replaceChildren(
-          ...names.map((name) => {
-            const option = document.createElement("option");
-            option.value = name;
-            return option;
-          }),
-        );
-      })
-      .catch(() => {});
+    // I programmi aperti e le reti connesse adesso, come suggerimenti: i
+    // campi restano liberi.
+    suggest("list_processes", "rule-exe-list");
+    suggest("list_networks", "rule-network-list");
   }
 
   function showUpdate(text, installable) {
@@ -411,6 +425,7 @@
     try {
       await fill(await invoke("add_rule", { rule }));
       ruleExe.value = "";
+      ruleNetwork.value = "";
       openRuleForm(false);
       showToast(I18n.t("settings.rule_added"));
     } catch (message) {
@@ -446,6 +461,112 @@
     if (event.key === "Enter") durations.blur();
   });
 
+  // ------------------------------------------------------- diagnostica
+
+  function item(className, ...children) {
+    const li = document.createElement("li");
+    if (className) li.className = className;
+    li.append(...children);
+    return li;
+  }
+
+  function span(className, text) {
+    const el = document.createElement("span");
+    el.className = className;
+    el.textContent = text;
+    return el;
+  }
+
+  function diagStatus(text) {
+    $("diagnose-status").hidden = !text;
+    $("diagnose-status").textContent = text || "";
+  }
+
+  // Tutto arriva già a parole da Rust: qui si disegna e basta.
+  async function runDiagnose() {
+    if (diagnosing) return;
+    diagnosing = true;
+    // aria-busy e non disabled: un pulsante disattivato perde il focus.
+    $("diagnose-run").setAttribute("aria-busy", "true");
+    diagStatus(I18n.t("settings.diagnose_checking"));
+    try {
+      const d = await invoke("diagnose");
+      $("diagnose-now").replaceChildren(
+        ...d.now.map((n) => item(n.warn ? "is-warn" : "", span("diag-text", n.text))),
+      );
+      $("diagnose-rests").replaceChildren(
+        ...d.rests.map((r) => {
+          const parts = [span("diag-title", r.title), span("diag-text", r.woke)];
+          if (r.entered) parts.push(span("diag-text", r.entered));
+          if (r.note) parts.push(span("diag-note", r.note));
+          return item("", ...parts);
+        }),
+      );
+      $("diagnose-rests-empty").hidden = d.rests.length > 0;
+      $("diagnose-timers").textContent = d.timers || "";
+      $("diagnose-timers").hidden = !d.timers;
+      $("diagnose-devices").replaceChildren(...d.devices.map((name) => item("", span("diag-text", name))));
+      $("diagnose-devices-none").hidden = d.devices.length > 0;
+      $("diagnose-out").hidden = false;
+      diagStatus("");
+    } catch (err) {
+      diagStatus(String(err));
+    } finally {
+      diagnosing = false;
+      $("diagnose-run").removeAttribute("aria-busy");
+    }
+  }
+
+  let asking = false;
+  async function runRequests() {
+    if (asking) return;
+    asking = true;
+    const button = $("diagnose-admin");
+    button.setAttribute("aria-busy", "true");
+    $("diagnose-error").hidden = true;
+    diagStatus(I18n.t("settings.diagnose_waiting"));
+    try {
+      const r = await invoke("diagnose_requests");
+      $("diagnose-requests-list").replaceChildren(
+        ...r.items.map((q) => {
+          const head = document.createElement("span");
+          head.className = "diag-title";
+          head.append(span("", q.who), span("diag-kind", q.kind));
+          const parts = [head, span("diag-text", q.what + (q.reason ? " · «" + q.reason + "»" : ""))];
+          if (q.hint) parts.push(span("diag-note", q.hint));
+          return item(q.moka ? "is-moka" : "is-warn", ...parts);
+        }),
+      );
+      $("diagnose-requests-none").hidden = r.items.length > 0;
+      $("diagnose-timers-title").hidden = r.timers.length === 0;
+      $("diagnose-timers-raw").hidden = r.timers.length === 0;
+      $("diagnose-timers-raw").textContent = r.timers.join("\n");
+      $("diagnose-requests").hidden = false;
+    } catch (message) {
+      $("diagnose-error").textContent = String(message);
+      $("diagnose-error").hidden = false;
+    } finally {
+      diagStatus("");
+      button.removeAttribute("aria-busy");
+      asking = false;
+    }
+  }
+
+  // Dal menu della tray, "Perché non dorme?…": si va alla scheda e si controlla.
+  async function goToSection(section) {
+    if (section !== "diagnose") return;
+    const card = $("diagnose-card");
+    card.scrollIntoView({ block: "start" });
+    $("diagnose-run").focus();
+    await runDiagnose();
+    // Prima dei risultati la pagina è troppo corta per portare la scheda in cima.
+    card.scrollIntoView({ block: "start" });
+  }
+
+  $("diagnose-run").addEventListener("click", runDiagnose);
+  $("diagnose-admin").addEventListener("click", runRequests);
+  listen("moka://settings-section", (event) => goToSection(event.payload));
+
   // I link si aprono nel browser, non dentro la finestra.
   document.addEventListener("click", (event) => {
     const link = event.target.closest("a[href^='http']");
@@ -473,7 +594,8 @@
     try {
       await fill(await invoke("get_settings"));
     } finally {
-      invoke("settings_ready");
+      const section = await invoke("settings_ready").catch(() => null);
+      if (section) goToSection(section);
     }
   })();
 })();

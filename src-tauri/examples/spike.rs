@@ -8,6 +8,7 @@
 //! cargo run --release --example spike -- run --minutes 30 --lid --display
 //! cargo run --release --example spike -- report spike-AAAAMMGG-HHMMSS.csv
 //! cargo run --release --example spike -- probes --seconds 60
+//! cargo run --release --example spike -- diagnose
 //! ```
 //!
 //! `probes` (0.4) stampa ogni 5 s ciò che vedono le sonde delle regole
@@ -50,6 +51,7 @@ fn main() {
         Some("lid-write-check") => lid_write_check(),
         Some("run") => run(&args[1..]),
         Some("probes") => probe_loop(&args[1..]),
+        Some("diagnose") => diagnose(),
         Some("report") => match args.get(1) {
             Some(path) => report(path),
             None => usage(),
@@ -60,9 +62,53 @@ fn main() {
 
 fn usage() {
     eprintln!(
-        "uso:\n  spike info\n  spike run [--minutes N] [--display] [--execution] [--no-system]\n            [--screen-off] [--lid] [--lid-battery] [--log FILE]\n  spike report FILE\n  spike probes [--seconds N]"
+        "uso:\n  spike info\n  spike run [--minutes N] [--display] [--execution] [--no-system]\n            [--screen-off] [--lid] [--lid-battery] [--log FILE]\n  spike report FILE\n  spike probes [--seconds N]\n  spike diagnose"
     );
     std::process::exit(2);
+}
+
+/// Ciò che la diagnostica di Moka legge senza amministratore (0.5).
+fn diagnose() {
+    use moka_lib::diagnose as d;
+    let started = Instant::now();
+    let events = d::recent_power_events(200);
+    let rests = d::rests(&events);
+    println!(
+        "eventi letti: {} in {} ms; riposi di almeno un minuto: {}",
+        events.len(),
+        started.elapsed().as_millis(),
+        rests.len()
+    );
+    for r in rests.iter().take(10) {
+        let at = |ms: i64| {
+            Local
+                .timestamp_millis_opt(ms)
+                .single()
+                .map(|t| t.format("%d/%m %H:%M").to_string())
+                .unwrap_or_default()
+        };
+        println!(
+            "  {:?} {} → {} ({} min)  entrato {:?} → {:?}  uscito {:?} → {:?}  basso consumo {:?}%  audio {}  sorgente {:?}  timer {:?}",
+            r.kind,
+            at(r.start_ms),
+            at(r.end_ms),
+            (r.end_ms - r.start_ms) / 60_000,
+            r.enter_reason,
+            r.enter_reason.and_then(d::enter_reason_key),
+            r.wake_reason,
+            r.wake_reason.and_then(d::wake_reason_key),
+            r.low_power_pct,
+            yes(r.audio),
+            r.wake_source,
+            r.wake_timer,
+        );
+    }
+    println!("possono svegliarlo: {:?}", d::wake_devices());
+    let s = d::sleep_settings();
+    println!(
+        "sospensione dopo (s, in carica/a batteria): {:?}; timer di risveglio: {:?}",
+        s.standby, s.wake_timers
+    );
 }
 
 fn probe_loop(args: &[String]) {
@@ -78,6 +124,8 @@ fn probe_loop(args: &[String]) {
         call: true,
         net: true,
         cpu: true,
+        usb: true,
+        networks: true,
     };
     let windowed = probes::windowed_processes();
     println!(
@@ -85,18 +133,25 @@ fn probe_loop(args: &[String]) {
         windowed.len(),
         windowed.join(", ")
     );
+    println!("reti connesse: {}", probes::connected_networks().join(", "));
+    let vols: Vec<String> = probes::volumes()
+        .iter()
+        .map(|v| format!("{}: tipo {} bus {:?}", v.letter, v.drive_type, v.bus))
+        .collect();
+    println!("volumi (bus 7 = USB): {}", vols.join(" · "));
     let mut p = Probes::default();
     let start = Instant::now();
     loop {
         let seen = p.observe(needs, sys::now().tick_ms);
         println!(
-            "{:>4}s  processi {:>3}  schermo intero {}  chiamata {}  download {}  cpu {}  inattivo {} s",
+            "{:>4}s  processi {:>3}  schermo intero {}  chiamata {}  download {}  cpu {}  usb {}  inattivo {} s",
             start.elapsed().as_secs(),
             seen.processes.as_ref().map_or(0, |s| s.len()),
             yes(seen.fullscreen),
             yes(seen.call),
             seen.net_kbps.map_or("-".into(), |k| format!("{k} KB/s")),
             seen.cpu_percent.map_or("-".into(), |c| format!("{c}%")),
+            yes(seen.usb),
             moka_lib::presence_idle_ms() / 1000,
         );
         if start.elapsed().as_secs() >= seconds {
