@@ -39,29 +39,28 @@ a { color: inherit; }
 .container { max-width: var(--max-width); margin: 0 auto; padding: 0 28px; }
 
 /* ---------- header ---------- */
-.site-header {
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: 22px 28px;
+header.site {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
   flex-wrap: wrap;
+  padding: 22px 0;
 }
+.brand-group { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-.brand img { width: 30px; height: 30px; border-radius: 9px; }
-.brand { font-family: var(--display); font-weight: 800; font-size: 17px; letter-spacing: -0.01em; color: var(--text); }
+.brand .mark { width: 30px; height: 30px; border-radius: 9px; }
+.brand .word { font-family: var(--display); font-weight: 800; font-size: 17px; letter-spacing: -0.01em; color: var(--text); }
 
 .by {
   font-family: var(--mono);
   font-size: 12.5px;
   color: var(--text-faint);
-  margin-right: auto;
-  margin-left: 4px;
 }
 .by a { color: var(--text-dim); text-decoration: none; border-bottom: 1px dashed var(--line); }
 .by a:hover { color: var(--text); border-color: var(--text-dim); }
+
+.header-right { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 
 .header-links {
   display: flex;
@@ -98,7 +97,7 @@ a { color: inherit; }
 .lang-switch button:hover { color: var(--text); }
 
 /* ---------- hero ---------- */
-.hero { padding: 40px 0 40px; }
+.hero { padding: 56px 0 40px; }
 .eyebrow {
   font-family: var(--mono);
   font-size: 13px;
@@ -326,17 +325,27 @@ a { color: inherit; }
 .all-releases a:hover { color: var(--text); }
 
 /* ---------- footer ---------- */
-.site-footer {
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: 32px 28px 44px;
+footer.site {
   border-top: 1px solid var(--line);
-  color: var(--text-faint);
-  font-size: 13.5px;
+  padding: 32px 0 44px;
 }
-.site-footer a { color: var(--text-dim); text-decoration: none; }
-.site-footer a:hover { color: var(--text); }
-.site-footer p { margin: 6px 0; }
+.footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  font-size: 13.5px;
+  color: var(--text-faint);
+}
+.footer-row a { color: var(--text-dim); text-decoration: none; }
+.footer-row a:hover { color: var(--text); }
+.footer-links { display: flex; gap: 20px; flex-wrap: wrap; }
+
+/* footer semplificato delle pagine legali: una riga sola, niente split */
+footer.site p { margin: 0; font-size: 13.5px; color: var(--text-faint); }
+footer.site p a { color: var(--text-dim); text-decoration: none; }
+footer.site p a:hover { color: var(--text); }
 
 /* ---------- legal pages ---------- */
 .legal { padding: 48px 0 90px; max-width: 760px; }
