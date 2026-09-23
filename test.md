@@ -88,6 +88,13 @@
 - [x] Il valore in `RunOnce` ha un nome per eseguibile (`MokaRestoreLid-<impronta>`): una build di release con identificativo diverso scrive il proprio e, chiudendosi, toglie **solo** quello — l'altra Moka e la sua modifica al coperchio restano intatte
 - [x] Chiusa la prova, l'azione del coperchio a batteria torna "sospendi" e quella in carica resta all'altra Moka (che la sta tenendo per la sua sessione)
 
+2026-09-23, **LPT-MIKI**, aggiornamento automatico dalla release pubblicata.
+
+- [x] Un'istanza che si dichiara 0.4.0 trova la 0.5.0 su GitHub (`releases/latest/download/latest.json` risponde 200 con versione e firma) e mostra la scheda "Moka 0.5.0 è pronta"
+- [x] "Aggiorna": scarica l'installer, **la firma viene verificata**, l'installer parte, chiude in modo pulito la Moka in esecuzione e installa in `%LOCALAPPDATA%\Moka`; impostazioni e stato dell'utente restano (stesso identificatore)
+- [x] Dopo l'aggiornamento: nessun residuo (niente `RunOnce`, coperchio "sospendi" in carica e a batteria), voce in "App e funzionalità" con la versione giusta
+- [x] ⚠️ L'installer avviato dall'updater riceve `/UPDATE` e **non crea il collegamento nel menu Start** (in un aggiornamento normale esiste già). Rieseguendo l'installer in modo normale (`/S`) il collegamento compare, e viene attivato anche l'avvio automatico
+
 ## Da verificare
 
 Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) oppure un altro PC.

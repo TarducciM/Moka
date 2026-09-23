@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-23 — l'aggiornamento automatico provato per davvero
+
+Nessun cambio di codice (versione invariata, 0.5.0): la prova che mancava, fatta su LPT-MIKI appena pubblicata la release.
+
+- Un'istanza che si dichiarava **0.4.0** ha trovato la **0.5.0** su GitHub, ha mostrato la scheda "Moka 0.5.0 è pronta", ha scaricato l'installer, ne ha **verificato la firma** e l'ha installato. Moka è passata da una build di sviluppo alla versione installata in `%LOCALAPPDATA%\Moka`, con impostazioni e stato dell'utente intatti (stesso identificatore).
+- L'installer, chiamato dall'updater, ha chiuso in modo pulito la Moka in esecuzione e ha lasciato l'impostazione del coperchio com'era.
+- **Da sapere**: l'installer riceve `/UPDATE` dall'updater e in quel caso **non crea il collegamento nel menu Start**, perché in un aggiornamento normale quel collegamento c'è già. Se la primissima installazione avviene *attraverso* l'updater — un percorso che un utente non fa, ma che qui è capitato — il collegamento manca. Rieseguendo l'installer in modo normale (anche silenzioso) compare, insieme all'avvio automatico.
+
 ## 2026-09-23 — 0.5.0: prima release pubblica
 
 Primo numero di versione "vero": fin qui erano tutte 0.0.x di sviluppo. È **0.5.0** e non 0.3.0 (il numero che la roadmap aveva previsto per la prima release) perché nel frattempo sono arrivate anche le regole automatiche, la Presenza e la diagnostica, cioè le tappe 0.4 e 0.5.
