@@ -531,7 +531,8 @@ Ogni passaggio: bump di patch più voce nel `CHANGELOG`. Minor alle tappe qui so
 - [x] Promemoria stella GitHub
 - [x] `site/` con index, privacy, terms, cookie policy (bozze legali da far rivedere)
 - [x] `release.yml`: NSIS + MSI + portable, `latest.json` costruito a mano, bozza, controllo tag/versione, pulizia se fallisce
-- [ ] **Michele** (`docs/RELEASE.md`): copia della chiave privata, secret su GitHub, repo pubblico, DNS del sito, voce nella home MTSolutions, tag `v0.3.0` e pubblicazione della bozza
+- [x] Secret su GitHub, repo pubblico, tag e pubblicazione: fatti il 2026-09-23 con il numero **0.5.0** (nel frattempo erano arrivate anche le tappe 0.4 e 0.5). Release: [v0.5.0](https://github.com/TarducciM/Moka/releases/tag/v0.5.0), updater verificato dall'esterno
+- [ ] **Michele**: copia di sicurezza della chiave privata dell'updater fuori da questo PC, DNS del sito, voce nella home MTSolutions, revisione legale delle pagine
 
 ### 0.4.0 — regole automatiche e Presenza
 

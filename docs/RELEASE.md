@@ -61,17 +61,21 @@ gh repo edit TarducciM/Moka --visibility public --accept-visibility-change-conse
 
 Il workflow controlla che il tag coincida con la versione dell'app: un `v0.5.0` su un'app che dice `0.0.8` si ferma prima di costruire.
 
-## Stato al 2026-09-23
+## Stato al 2026-09-23 — 0.5.0 pubblicata
 
 | Passo | Stato |
 |---|---|
 | Versione allineata ovunque (0.5.0) e CHANGELOG | fatto |
 | CI verde su `main` | fatto |
-| Secret `TAURI_SIGNING_PRIVATE_KEY` | **da fare**: `gh secret list` sul repo non mostra niente. Senza, il workflow si ferma alla firma |
-| Repo pubblico | **da fare**: `gh repo view` dice ancora `PRIVATE`. L'updater scarica da `releases/latest/download`, che su un repo privato non è raggiungibile |
-| Tag `v0.5.0` e bozza della release | in attesa dei due passi qui sopra |
-| Sito, voce nella home, revisione legale | da fare |
-| Spike (`docs/SPIKE.md`) | non fatto: le promesse sul coperchio restano dichiarate "in prova" nel sito e nel README |
+| Secret `TAURI_SIGNING_PRIVATE_KEY` | fatto (impostato dal file locale, mai letto né stampato) |
+| Repo pubblico | fatto |
+| Tag `v0.5.0`, workflow, release | fatto: costruita in 10 minuti, bozza controllata e **pubblicata** — [v0.5.0](https://github.com/TarducciM/Moka/releases/tag/v0.5.0), con installer NSIS (2,1 MB), MSI (2,8 MB), portable (5,4 MB), le firme e `latest.json` |
+| Updater | verificato dall'esterno: `releases/latest/download/latest.json` risponde 200 e contiene versione, firma e link all'installer |
+| Copia di sicurezza della chiave privata fuori da questo PC | **da fare** (Michele): se si perde, le versioni installate non potranno più aggiornarsi |
+| Sito (DNS `moka.mtsolutions.studio`), voce nella home di mtsolutions.studio, revisione legale delle pagine | da fare |
+| Spike (`docs/SPIKE.md`) | non fatto: le promesse sul coperchio restano dichiarate "in prova" nel sito, nel README e nelle note della release |
+
+Le versioni successive seguono la sezione "A ogni versione" qui sopra: versione allineata, CHANGELOG, push, CI verde, tag `vX.Y.Z`, controllo della bozza, pubblicazione.
 
 ## Verificato in locale (2026-09-22, LPT-MIKI)
 
