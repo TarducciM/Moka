@@ -1,6 +1,6 @@
 # Pubblicare una versione
 
-La prima release pubblica è la **0.3.0**. Tutto il necessario è pronto nel repo: workflow `release.yml`, installer, updater, sito. Mancano i passi che toccano l'esterno o che non si possono annullare, e restano una decisione di Michele.
+La prima release pubblica è la **0.5.0** (non la 0.3.0 prevista dalla roadmap: nel frattempo sono arrivate anche le tappe 0.4 e 0.5, e il numero deve dire cosa c'è dentro). Tutto il necessario è pronto nel repo: workflow `release.yml`, installer, updater, sito. Mancano i passi che toccano l'esterno o che non si possono annullare, e restano una decisione di Michele.
 
 ## Prima di tutto
 
@@ -49,17 +49,29 @@ gh repo edit TarducciM/Moka --visibility public --accept-visibility-change-conse
 4. Il tag, che fa partire `release.yml`:
 
    ```bash
-   git tag v0.3.0
+   git tag v0.5.0
    ```
 
    ```bash
-   git push origin v0.3.0
+   git push origin v0.5.0
    ```
 
 5. Il workflow costruisce NSIS, MSI e portable, firma l'installer NSIS per l'updater, costruisce e controlla `latest.json` e crea la release **in bozza**, con la tabella dei download. Se la build fallisce, la bozza si cancella da sola.
 6. Guardare la bozza su GitHub (allegati, note) e **pubblicarla a mano**. Da quel momento le versioni installate la vedono entro 24 ore.
 
-Il workflow controlla che il tag coincida con la versione dell'app: un `v0.3.0` su un'app che dice `0.0.3` si ferma prima di costruire.
+Il workflow controlla che il tag coincida con la versione dell'app: un `v0.5.0` su un'app che dice `0.0.8` si ferma prima di costruire.
+
+## Stato al 2026-09-23
+
+| Passo | Stato |
+|---|---|
+| Versione allineata ovunque (0.5.0) e CHANGELOG | fatto |
+| CI verde su `main` | fatto |
+| Secret `TAURI_SIGNING_PRIVATE_KEY` | **da fare**: `gh secret list` sul repo non mostra niente. Senza, il workflow si ferma alla firma |
+| Repo pubblico | **da fare**: `gh repo view` dice ancora `PRIVATE`. L'updater scarica da `releases/latest/download`, che su un repo privato non è raggiungibile |
+| Tag `v0.5.0` e bozza della release | in attesa dei due passi qui sopra |
+| Sito, voce nella home, revisione legale | da fare |
+| Spike (`docs/SPIKE.md`) | non fatto: le promesse sul coperchio restano dichiarate "in prova" nel sito e nel README |
 
 ## Verificato in locale (2026-09-22, LPT-MIKI)
 

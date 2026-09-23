@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-09-23 — 0.5.0: prima release pubblica
+
+Primo numero di versione "vero": fin qui erano tutte 0.0.x di sviluppo. È **0.5.0** e non 0.3.0 (il numero che la roadmap aveva previsto per la prima release) perché nel frattempo sono arrivate anche le regole automatiche, la Presenza e la diagnostica, cioè le tappe 0.4 e 0.5.
+
+Cosa c'è dentro, in breve:
+
+- **Tenere sveglio il PC** dalla tray: solo il PC o anche lo schermo, a tempo, fino a un'ora, per sempre; "spegni lo schermo ora" lasciando il PC sveglio.
+- **Portatili**: resta acceso anche a coperchio chiuso (solo in carica o anche a batteria), modalità scrivania, protezione zaino, blocco alla riapertura. L'impostazione di Windows torna sempre com'era, anche dopo un crash.
+- **"…e poi"**: a fine sessione spegni schermo, blocca, sospendi, iberna o arresta, con conto alla rovescia annullabile e avviso 5 minuti prima.
+- **Regole automatiche**: programma aperto, schermo intero, in chiamata, in carica, monitor esterno, disco USB, rete connessa, fascia oraria, download in corso, processore occupato. Il pannello dice sempre perché è acceso; le regole si sospendono con un clic.
+- **Presenza** (spenta di default): niente salvaschermo né blocco per inattività mentre Moka è accesa.
+- **Diagnostica** "Perché non dorme? Perché si è svegliato?", che legge ciò che Windows sa già e lo spiega.
+- Tasti rapidi globali, riga di comando, soglia batteria, italiano e inglese, aggiornamenti automatici firmati.
+- Tutto in locale: nessun account, nessuna telemetria; l'unica connessione è il controllo degli aggiornamenti.
+
+**Cosa resta dichiarato come non verificato**, e sta scritto anche nel sito e nel README: sui portatili con standby moderno "anche a coperchio chiuso" e "spegni lo schermo ora" aspettano ancora lo spike su hardware vero (`docs/SPIKE.md`).
+
 ## 2026-09-22 — 0.0.8: la rete di sicurezza del coperchio non è più di tutti
 
 Trovato provando a fare lo spike: l'azione del coperchio risultava "non fare nulla" con una sessione attiva (giusto), ma in `RunOnce` non c'era il valore che la rimetterebbe se Moka venisse uccisa.
