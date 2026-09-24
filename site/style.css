@@ -239,6 +239,14 @@ header.site {
   flex-direction: column;
   gap: 8px;
 }
+/* Con un numero dispari di voci l'ultima resterebbe sola in riga, con una
+   cella vuota accanto — capita ogni volta che se ne aggiunge/toglie una
+   senza pensare alla griglia a 2 colonne. :nth-child(odd) la individua da
+   sola: si estende su tutta la riga solo quando è davvero l'ultima E dispari,
+   e torna a comportarsi come le altre se il conteggio ridiventa pari. */
+.feature-list li:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
 .feature-list li strong {
   font-family: var(--display);
   font-size: 16px;
