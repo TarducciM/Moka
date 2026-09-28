@@ -106,6 +106,7 @@
 
 - [x] Pagina **"Moka è già installato"** in italiano, con titolo e sottotitolo giusti, le tre scelte e la riga che spiega che le impostazioni sopravvivono: si legge tutto, niente tagliato
 - [x] La prima voce si chiama "Ripara: reinstalla la stessa versione" perché la versione trovata è la stessa, ed è preselezionata
+- [x] Con la 0.6.0 installata e l'installer della 0.6.1, la stessa pagina diventa "Sul PC c'è Moka 0.6.0, questo installer porta la 0.6.1" e la prima voce "Aggiorna alla 0.6.1, tenendo le tue impostazioni" — sparito il consiglio del template di disinstallare prima
 - [x] Pagina **"Attività aggiuntive"** con tre caselle, spuntate secondo lo stato vero della macchina: avvio automatico sì, collegamento nel menu Start sì, collegamento sul desktop no
 - [x] La pagina finale non chiede più il collegamento sul desktop una seconda volta
 

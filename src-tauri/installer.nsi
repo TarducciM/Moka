@@ -199,6 +199,7 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 Var ReinstallPageCheck
 ; Moka: la pagina di manutenzione a tre scelte e la casella del menu Start.
 Var MokaChoice ; 1 aggiorna/ripara · 2 disinstalla e reinstalla · 3 solo disinstalla
+Var MokaInstalledVer
 Var MokaRadioUpdate
 Var MokaRadioClean
 Var MokaRadioUninstall
@@ -252,23 +253,30 @@ Function PageReinstall
   ${EndIf}
   ${IfThen} $R0 == "" ${|} StrCpy $R4 "$(unknown)" ${|}
 
+  ; Moka: la versione trovata serve nel testo della pagina, e fra due righe
+  ; $R0 diventa l'esito del confronto.
+  StrCpy $MokaInstalledVer $R0
+  ${IfThen} $MokaInstalledVer == "" ${|} StrCpy $MokaInstalledVer "$(mokaMaintUnknownVer)" ${|}
+
   nsis_tauri_utils::SemverCompare "${VERSION}" $R0
   Pop $R0
   ; Reinstalling the same version
   ${If} $R0 = 0
-    StrCpy $R1 "$(alreadyInstalledLong)"
+    ; Moka: il testo del template consiglia di disinstallare prima di
+    ; installare -- il contrario della prima scelta, che è quella giusta.
+    StrCpy $R1 "$(mokaMaintIntroSame)"
     StrCpy $R2 "$(addOrReinstall)"
     StrCpy $R3 "$(uninstallApp)"
     !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$(chooseMaintenanceOption)"
   ; Upgrading
   ${ElseIf} $R0 = 1
-    StrCpy $R1 "$(olderOrUnknownVersionInstalled)"
+    StrCpy $R1 "$(mokaMaintIntroOlder)"
     StrCpy $R2 "$(uninstallBeforeInstalling)"
     StrCpy $R3 "$(dontUninstall)"
     !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$(choowHowToInstall)"
   ; Downgrading
   ${ElseIf} $R0 = -1
-    StrCpy $R1 "$(newerVersionInstalled)"
+    StrCpy $R1 "$(mokaMaintIntroNewer)"
     StrCpy $R2 "$(uninstallBeforeInstalling)"
     !if "${ALLOWDOWNGRADES}" == "true"
       StrCpy $R3 "$(dontUninstall)"
@@ -597,6 +605,10 @@ LangString mokaMaintDowngrade ${LANG_ENGLISH} "Go back to version ${VERSION}, ke
 LangString mokaMaintClean ${LANG_ENGLISH} "Uninstall first, then install ${VERSION} from scratch"
 LangString mokaMaintUninstall ${LANG_ENGLISH} "Uninstall ${PRODUCTNAME} and stop here"
 LangString mokaMaintHint ${LANG_ENGLISH} "Your settings live outside the program folder: they survive an uninstall, which always puts the Windows lid setting back as it was."
+LangString mokaMaintUnknownVer ${LANG_ENGLISH} "an unknown version"
+LangString mokaMaintIntroSame ${LANG_ENGLISH} "${PRODUCTNAME} ${VERSION} is already on this PC. Choose what to do and click Next."
+LangString mokaMaintIntroOlder ${LANG_ENGLISH} "This PC has ${PRODUCTNAME} $MokaInstalledVer; this installer carries ${VERSION}. Choose what to do and click Next."
+LangString mokaMaintIntroNewer ${LANG_ENGLISH} "This PC has ${PRODUCTNAME} $MokaInstalledVer, newer than this one (${VERSION}). Choose what to do and click Next."
 
 !ifdef LANG_ITALIAN
   LangString mokaTasksTitle ${LANG_ITALIAN} "Attività aggiuntive"
@@ -613,6 +625,10 @@ LangString mokaMaintHint ${LANG_ENGLISH} "Your settings live outside the program
   LangString mokaMaintClean ${LANG_ITALIAN} "Disinstalla e poi installa la ${VERSION} da capo"
   LangString mokaMaintUninstall ${LANG_ITALIAN} "Disinstalla ${PRODUCTNAME} e fermati qui"
   LangString mokaMaintHint ${LANG_ITALIAN} "Le tue impostazioni stanno fuori dalla cartella del programma: sopravvivono alla disinstallazione, che rimette sempre com'era l'impostazione di Windows per il coperchio."
+  LangString mokaMaintUnknownVer ${LANG_ITALIAN} "una versione sconosciuta"
+  LangString mokaMaintIntroSame ${LANG_ITALIAN} "Sul PC c'è già ${PRODUCTNAME} ${VERSION}. Scegli cosa fare e seleziona 'Avanti'."
+  LangString mokaMaintIntroOlder ${LANG_ITALIAN} "Sul PC c'è ${PRODUCTNAME} $MokaInstalledVer, questo installer porta la ${VERSION}. Scegli cosa fare e seleziona 'Avanti'."
+  LangString mokaMaintIntroNewer ${LANG_ITALIAN} "Sul PC c'è ${PRODUCTNAME} $MokaInstalledVer, più recente di questa (${VERSION}). Scegli cosa fare e seleziona 'Avanti'."
 !endif
 
 Function .onInit
