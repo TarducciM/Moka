@@ -197,6 +197,15 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 ; 4. Custom page to ask user if he wants to reinstall/uninstall
 ;    only if a previous installation was detected
 Var ReinstallPageCheck
+; Moka: la pagina di manutenzione a tre scelte e la casella del menu Start.
+Var MokaChoice ; 1 aggiorna/ripara · 2 disinstalla e reinstalla · 3 solo disinstalla
+Var MokaRadioUpdate
+Var MokaRadioClean
+Var MokaRadioUninstall
+Var MokaStartMenu
+Var MokaStartMenuCheckbox
+Var MokaDesktop
+Var MokaDesktopCheckbox
 Page custom PageReinstall PageLeaveReinstall
 Function PageReinstall
   ; Uninstall previous WiX installation if exists.
@@ -280,48 +289,76 @@ Function PageReinstall
   ${If} $PassiveMode = 1
     Call PageLeaveReinstall
   ${Else}
+    ; Moka: tre scelte dichiarate, invece delle due del template che
+    ; cambiavano significato a seconda della versione trovata.
+    !insertmacro MUI_HEADER_TEXT "$(mokaMaintTitle)" "$(mokaMaintSubtitle)"
     nsDialogs::Create 1018
     Pop $R4
     ${IfThen} $(^RTL) = 1 ${|} nsDialogs::SetRTL $(^RTL) ${|}
 
-    ${NSD_CreateLabel} 0 0 100% 24u $R1
+    ${NSD_CreateLabel} 0 0 100% 20u $R1
     Pop $R1
 
-    ${NSD_CreateRadioButton} 30u 50u -30u 8u $R2
-    Pop $R2
-    ${NSD_OnClick} $R2 PageReinstallUpdateSelection
-
-    ${NSD_CreateRadioButton} 30u 70u -30u 8u $R3
-    Pop $R3
-    ; Disable this radio button if downgrading and downgrades are disabled
-    !if "${ALLOWDOWNGRADES}" == "false"
-      ${IfThen} $R0 = -1 ${|} EnableWindow $R3 0 ${|}
-    !endif
-    ${NSD_OnClick} $R3 PageReinstallUpdateSelection
-
-    ; Check the first radio button if this the first time
-    ; we enter this page or if the second button wasn't
-    ; selected the last time we were on this page
-    ${If} $ReinstallPageCheck <> 2
-      SendMessage $R2 ${BM_SETCHECK} ${BST_CHECKED} 0
+    ; La prima voce si chiama "ripara" se è la stessa versione, "aggiorna"
+    ; se è più nuova, "torna alla versione…" se è più vecchia.
+    ${If} $R0 = 0
+      StrCpy $R2 "$(mokaMaintRepair)"
+    ${ElseIf} $R0 = 1
+      StrCpy $R2 "$(mokaMaintUpdate)"
     ${Else}
-      SendMessage $R3 ${BM_SETCHECK} ${BST_CHECKED} 0
+      StrCpy $R2 "$(mokaMaintDowngrade)"
     ${EndIf}
 
-    ${NSD_SetFocus} $R2
+    ${NSD_CreateRadioButton} 20u 24u -20u 10u $R2
+    Pop $MokaRadioUpdate
+    ${NSD_OnClick} $MokaRadioUpdate PageReinstallUpdateSelection
+    !if "${ALLOWDOWNGRADES}" == "false"
+      ${IfThen} $R0 = -1 ${|} EnableWindow $MokaRadioUpdate 0 ${|}
+    !endif
+
+    ${NSD_CreateRadioButton} 20u 42u -20u 10u "$(mokaMaintClean)"
+    Pop $MokaRadioClean
+    ${NSD_OnClick} $MokaRadioClean PageReinstallUpdateSelection
+
+    ${NSD_CreateRadioButton} 20u 60u -20u 10u "$(mokaMaintUninstall)"
+    Pop $MokaRadioUninstall
+    ${NSD_OnClick} $MokaRadioUninstall PageReinstallUpdateSelection
+
+    ${NSD_CreateLabel} 20u 80u -20u 32u "$(mokaMaintHint)"
+    Pop $R3
+
+    ; Ritorna sulla pagina con la scelta di prima, o la prima voce.
+    ${If} $ReinstallPageCheck = 2
+      SendMessage $MokaRadioClean ${BM_SETCHECK} ${BST_CHECKED} 0
+      ${NSD_SetFocus} $MokaRadioClean
+    ${ElseIf} $ReinstallPageCheck = 3
+      SendMessage $MokaRadioUninstall ${BM_SETCHECK} ${BST_CHECKED} 0
+      ${NSD_SetFocus} $MokaRadioUninstall
+    ${Else}
+      SendMessage $MokaRadioUpdate ${BM_SETCHECK} ${BST_CHECKED} 0
+      ${NSD_SetFocus} $MokaRadioUpdate
+    ${EndIf}
+
     nsDialogs::Show
   ${EndIf}
 FunctionEnd
 Function PageReinstallUpdateSelection
-  ${NSD_GetState} $R2 $R1
-  ${If} $R1 == ${BST_CHECKED}
-    StrCpy $ReinstallPageCheck 1
-  ${Else}
+  ; Moka: tre scelte, ricordate per quando si torna indietro.
+  ${NSD_GetState} $MokaRadioClean $0
+  ${NSD_GetState} $MokaRadioUninstall $1
+  ${If} $0 == ${BST_CHECKED}
     StrCpy $ReinstallPageCheck 2
+  ${ElseIf} $1 == ${BST_CHECKED}
+    StrCpy $ReinstallPageCheck 3
+  ${Else}
+    StrCpy $ReinstallPageCheck 1
   ${EndIf}
 FunctionEnd
 Function PageLeaveReinstall
-  ${NSD_GetState} $R2 $R1
+  ; Moka: la scelta della pagina sta in $ReinstallPageCheck
+  ; (1 aggiorna/ripara, 2 disinstalla e reinstalla, 3 solo disinstalla).
+  StrCpy $MokaChoice $ReinstallPageCheck
+  ${IfThen} $MokaChoice == "" ${|} StrCpy $MokaChoice 1 ${|}
 
   ; If migrating from Wix, always uninstall
   ${If} $WixMode = 1
@@ -333,28 +370,8 @@ Function PageLeaveReinstall
     Goto reinst_done
   ${EndIf}
 
-  ; $R0 holds whether same(0)/upgrading(1)/downgrading(-1) version
-  ; $R1 holds the radio buttons state:
-  ;   1 => first choice was selected
-  ;   0 => second choice was selected
-  ${If} $R0 = 0 ; Same version, proceed
-    ${If} $R1 = 1              ; User chose to add/reinstall
-      Goto reinst_done
-    ${Else}                    ; User chose to uninstall
-      Goto reinst_uninstall
-    ${EndIf}
-  ${ElseIf} $R0 = 1 ; Upgrading
-    ${If} $R1 = 1              ; User chose to uninstall
-      Goto reinst_uninstall
-    ${Else}
-      Goto reinst_done         ; User chose NOT to uninstall
-    ${EndIf}
-  ${ElseIf} $R0 = -1 ; Downgrading
-    ${If} $R1 = 1              ; User chose to uninstall
-      Goto reinst_uninstall
-    ${Else}
-      Goto reinst_done         ; User chose NOT to uninstall
-    ${EndIf}
+  ${If} $MokaChoice = 1
+    Goto reinst_done
   ${EndIf}
 
   reinst_uninstall:
@@ -393,6 +410,11 @@ Function PageLeaveReinstall
       ; Other erros? show generic error message and return to select un/reinstall page
       MessageBox MB_ICONEXCLAMATION "$(unableToUninstall)"
       Abort
+    ${EndIf}
+
+    ; Moka: "disinstalla soltanto" finisce qui, senza reinstallare niente.
+    ${If} $MokaChoice = 3
+      Quit
     ${EndIf}
   reinst_done:
 FunctionEnd
@@ -443,10 +465,44 @@ Function PageAdditionalTasks
   Pop $EnableAutostartCheckbox
   ${IfThen} $EnableAutostart == 1 ${|} ${NSD_SetState} $EnableAutostartCheckbox ${BST_CHECKED} ${|}
 
+  ; Moka: collegamento nel menu Start. Preselezionato dallo stato attuale:
+  ; chi lo aveva tolto non se lo ritrova a ogni aggiornamento.
+  ${If} $MokaStartMenu == ""
+    StrCpy $MokaStartMenu 1
+    ${If} ${FileExists} "$INSTDIR\${MAINBINARYNAME}.exe"
+      StrCpy $MokaStartMenu 0
+      !if "${STARTMENUFOLDER}" != ""
+        ${IfThen} ${FileExists} "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" ${|} StrCpy $MokaStartMenu 1 ${|}
+      !else
+        ${IfThen} ${FileExists} "$SMPROGRAMS\${PRODUCTNAME}.lnk" ${|} StrCpy $MokaStartMenu 1 ${|}
+      !endif
+    ${EndIf}
+  ${EndIf}
+
+  ${NSD_CreateCheckbox} 0 40u 100% 12u "$(mokaStartMenuShortcut)"
+  Pop $MokaStartMenuCheckbox
+  ${IfThen} $MokaStartMenu == 1 ${|} ${NSD_SetState} $MokaStartMenuCheckbox ${BST_CHECKED} ${|}
+
+  ; Moka: collegamento sul desktop. Prima era una casella nascosta nella
+  ; pagina finale ("mostra il leggimi" riusato): qui sta insieme alle altre.
+  ${If} $MokaDesktop == ""
+    ${If} ${FileExists} "$DESKTOP\${PRODUCTNAME}.lnk"
+      StrCpy $MokaDesktop 1
+    ${Else}
+      StrCpy $MokaDesktop 0
+    ${EndIf}
+  ${EndIf}
+
+  ${NSD_CreateCheckbox} 0 60u 100% 12u "$(mokaDesktopShortcut)"
+  Pop $MokaDesktopCheckbox
+  ${IfThen} $MokaDesktop == 1 ${|} ${NSD_SetState} $MokaDesktopCheckbox ${BST_CHECKED} ${|}
+
   nsDialogs::Show
 FunctionEnd
 Function PageLeaveAdditionalTasks
   ${NSD_GetState} $EnableAutostartCheckbox $EnableAutostart
+  ${NSD_GetState} $MokaStartMenuCheckbox $MokaStartMenu
+  ${NSD_GetState} $MokaDesktopCheckbox $MokaDesktop
 FunctionEnd
 
 ; 7. Installation page
@@ -457,10 +513,10 @@ FunctionEnd
 ; Don't auto jump to finish page after installation page,
 ; because the installation page has useful info that can be used debug any issues with the installer.
 !define MUI_FINISHPAGE_NOAUTOCLOSE
-; Use show readme button in the finish page as a button create a desktop shortcut
-!define MUI_FINISHPAGE_SHOWREADME
-!define MUI_FINISHPAGE_SHOWREADME_TEXT "$(createDesktop)"
-!define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateOrUpdateDesktopShortcut
+; Moka: il collegamento sul desktop si sceglie nella pagina "Attività
+; aggiuntive", insieme alle altre due caselle. Qui il template riusava il
+; pulsante "mostra il leggimi" della pagina finale: chiederlo due volte
+; confonde, quindi la casella della pagina finale non c'è più.
 ; Show run app after installation.
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_FUNCTION RunMainBinary
@@ -529,10 +585,34 @@ FunctionEnd
 LangString mokaTasksTitle ${LANG_ENGLISH} "Additional tasks"
 LangString mokaTasksSubtitle ${LANG_ENGLISH} "Choose additional options for ${PRODUCTNAME}"
 LangString mokaAutostart ${LANG_ENGLISH} "Start ${PRODUCTNAME} when I sign in to Windows"
+LangString mokaStartMenuShortcut ${LANG_ENGLISH} "Create a shortcut in the Start menu"
+LangString mokaDesktopShortcut ${LANG_ENGLISH} "Create a shortcut on the desktop"
+
+; Moka: pagina di manutenzione, quando ${PRODUCTNAME} è già installato
+LangString mokaMaintTitle ${LANG_ENGLISH} "${PRODUCTNAME} is already installed"
+LangString mokaMaintSubtitle ${LANG_ENGLISH} "Choose what to do"
+LangString mokaMaintRepair ${LANG_ENGLISH} "Repair: install the same version again, keeping your settings"
+LangString mokaMaintUpdate ${LANG_ENGLISH} "Update to ${VERSION}, keeping your settings"
+LangString mokaMaintDowngrade ${LANG_ENGLISH} "Go back to version ${VERSION}, keeping your settings"
+LangString mokaMaintClean ${LANG_ENGLISH} "Uninstall first, then install ${VERSION} from scratch"
+LangString mokaMaintUninstall ${LANG_ENGLISH} "Uninstall ${PRODUCTNAME} and stop here"
+LangString mokaMaintHint ${LANG_ENGLISH} "Your settings live outside the program folder: they survive an uninstall, which always puts the Windows lid setting back as it was."
+
 !ifdef LANG_ITALIAN
   LangString mokaTasksTitle ${LANG_ITALIAN} "Attività aggiuntive"
   LangString mokaTasksSubtitle ${LANG_ITALIAN} "Scegli le opzioni aggiuntive per ${PRODUCTNAME}"
   LangString mokaAutostart ${LANG_ITALIAN} "Avvia ${PRODUCTNAME} all'accesso a Windows"
+  LangString mokaStartMenuShortcut ${LANG_ITALIAN} "Crea un collegamento nel menu Start"
+  LangString mokaDesktopShortcut ${LANG_ITALIAN} "Crea un collegamento sul desktop"
+
+  LangString mokaMaintTitle ${LANG_ITALIAN} "${PRODUCTNAME} è già installato"
+  LangString mokaMaintSubtitle ${LANG_ITALIAN} "Scegli cosa fare"
+  LangString mokaMaintRepair ${LANG_ITALIAN} "Ripara: reinstalla la stessa versione, tenendo le tue impostazioni"
+  LangString mokaMaintUpdate ${LANG_ITALIAN} "Aggiorna alla ${VERSION}, tenendo le tue impostazioni"
+  LangString mokaMaintDowngrade ${LANG_ITALIAN} "Torna alla versione ${VERSION}, tenendo le tue impostazioni"
+  LangString mokaMaintClean ${LANG_ITALIAN} "Disinstalla e poi installa la ${VERSION} da capo"
+  LangString mokaMaintUninstall ${LANG_ITALIAN} "Disinstalla ${PRODUCTNAME} e fermati qui"
+  LangString mokaMaintHint ${LANG_ITALIAN} "Le tue impostazioni stanno fuori dalla cartella del programma: sopravvivono alla disinstallazione, che rimette sempre com'era l'impostazione di Windows per il coperchio."
 !endif
 
 Function .onInit
@@ -784,12 +864,18 @@ Section Install
     Call CreateOrUpdateStartMenuShortcut
   !insertmacro MUI_STARTMENU_WRITE_END
 
-  ; Create desktop shortcut for silent and passive installers
-  ; because finish page will be skipped
-  ${If} $PassiveMode = 1
-  ${OrIf} ${Silent}
+  ; Moka: il collegamento sul desktop segue la casella della pagina
+  ; "Attività aggiuntive". Vuota vuol dire installazione silenziosa o
+  ; passiva (l'aggiornamento automatico): lì vale il comportamento di prima.
+  ${If} $MokaDesktop == 1
     Call CreateOrUpdateDesktopShortcut
+  ${ElseIf} $MokaDesktop == 0
+    Delete "$DESKTOP\${PRODUCTNAME}.lnk"
   ${EndIf}
+  ; Vuoto (installazione silenziosa o passiva, cioè l'aggiornamento
+  ; automatico) vuol dire "non toccare il desktop": il template di serie ci
+  ; metteva un'icona a ogni installazione silenziosa, e per un'app che vive
+  ; nella barra delle applicazioni è solo un'icona in più da cancellare.
 
   !ifmacrodef NSIS_HOOK_POSTINSTALL
     !insertmacro NSIS_HOOK_POSTINSTALL
@@ -1002,6 +1088,18 @@ Function CreateOrUpdateStartMenuShortcut
     ${OrIf} $NoShortcutMode = 1
       Return
     ${EndIf}
+  ${EndIf}
+
+  ; Moka: la casella "crea un collegamento nel menu Start". Vuota vuol dire
+  ; installazione silenziosa o passiva: lì vale il comportamento di sempre.
+  ${If} $MokaStartMenu == 0
+    !if "${STARTMENUFOLDER}" != ""
+      Delete "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
+      RMDir "$SMPROGRAMS\$AppStartMenuFolder"
+    !else
+      Delete "$SMPROGRAMS\${PRODUCTNAME}.lnk"
+    !endif
+    Return
   ${EndIf}
 
   !if "${STARTMENUFOLDER}" != ""

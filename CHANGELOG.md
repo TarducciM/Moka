@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-09-28 — 0.6.1: l'installer dice cosa sta per fare, e chiede i collegamenti una volta sola
+
+Chiesto da Michele ("nell'installer sarebbe figo ripara, aggiorna, disinstalla o disinstalla e reinstalla, più la casella del collegamento nel menu Start"). Dentro l'app non cambia niente: cambia il programma di installazione.
+
+- **Pagina "Moka è già installato", con tre scelte dichiarate**: *Ripara* (reinstalla la stessa versione tenendo le impostazioni; diventa *Aggiorna alla X* o *Torna alla versione X* quando la versione trovata è diversa), *Disinstalla e poi installa da capo*, *Disinstalla e fermati qui*. Prima erano due pulsanti il cui significato cambiava da solo a seconda della versione trovata: lo stesso pulsante in alto voleva dire "reinstalla" in un caso e "disinstalla" nell'altro.
+- **Sotto le tre voci, la riga che toglie il dubbio vero**: le impostazioni stanno fuori dalla cartella del programma, quindi **sopravvivono alla disinstallazione**, che rimette sempre com'era l'impostazione di Windows per il coperchio.
+- **"Disinstalla e fermati qui" si ferma davvero**: prima disinstallare voleva sempre dire reinstallare subito dopo.
+- **Le tre caselle stanno tutte nella stessa pagina** ("Attività aggiuntive"): avvio automatico, collegamento nel menu Start, collegamento sul desktop. Quella del desktop era nascosta nella pagina finale, travestita da "mostra il leggimi" — il template la riusava così — e finiva per essere chiesta due volte.
+- **Le caselle partono da com'è adesso**: chi il collegamento nel menu Start se l'era tolto non se lo ritrova a ogni aggiornamento, e togliendo la spunta il collegamento viene rimosso.
+- **Un'installazione silenziosa non tocca più il desktop.** Il template di serie ci metteva un'icona a **ogni** installazione silenziosa o passiva, cioè a ogni aggiornamento automatico: un'icona cancellata dall'utente ricompariva da sola, per un'app che vive nella barra delle applicazioni.
+- Verificato su LPT-MIKI aprendo l'installer vero: le due pagine compaiono in italiano, le tre scelte e la riga lunga sotto si leggono per intero, e le caselle riflettono lo stato vero della macchina (avvio automatico sì, menu Start sì, desktop no). **Da provare con un clic**: le tre scelte portate fino in fondo, che installano o rimuovono Moka per davvero.
+
 ## 2026-09-28 — 0.6.0: la fine della sessione si decide una volta sola, e un tasto per bloccare
 
 Nate da una domanda di Michele ("cosa succede quando finisce il tempo? va subito in standby?") che ha mostrato due cose: la risposta non era ovvia, e due funzioni che c'erano già non si trovavano.

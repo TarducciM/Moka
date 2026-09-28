@@ -1,6 +1,6 @@
 # Moka — piano di progetto
 
-> **Stato: 0.6.0** (la 0.5.0 è la release pubblicata; la 0.6.0 aggiunge le opzioni di fine sessione e "Blocca il PC ora"). Tutto il codice fino alla 0.5 (diagnostica, regole su USB e rete, memoria del pannello) è scritto e provato su LPT-MIKI; la pubblicazione della prima release aspetta lo spike e i passi di Michele in [`RELEASE.md`](RELEASE.md). In dettaglio: Il nucleo della 0.1 e tutta la parte della 0.2 che non dipende dallo spike sono scritti e verificati su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md). Lo spike decide **quali richieste** tenere a coperchio chiuso, non come si cambia e si rimette l'impostazione di Windows, che è già fatto e provato.
+> **Stato: 0.6.1** (la 0.5.0 è la release pubblicata; la 0.6.0 aggiunge le opzioni di fine sessione e "Blocca il PC ora", la 0.6.1 rifà le pagine dell'installer). Tutto il codice fino alla 0.5 (diagnostica, regole su USB e rete, memoria del pannello) è scritto e provato su LPT-MIKI; la pubblicazione della prima release aspetta lo spike e i passi di Michele in [`RELEASE.md`](RELEASE.md). In dettaglio: Il nucleo della 0.1 e tutta la parte della 0.2 che non dipende dallo spike sono scritti e verificati su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md). Lo spike decide **quali richieste** tenere a coperchio chiuso, non come si cambia e si rimette l'impostazione di Windows, che è già fatto e provato.
 >
 > Questo file è il punto di ripresa: chi riprende il lavoro, da qualunque PC, parte da qui. Va aggiornato a ogni passaggio significativo, insieme a `CHANGELOG.md`.
 >
@@ -122,6 +122,15 @@ Serve un PC Windows con la toolchain Tauri. **Il primo comando è `hostname`**, 
 | `--while` / `--while-pid` | Regole temporanee, mai salvate, che vivono finché vive il processo. Se il processo non compare entro 10 s la regola si scarta con una notifica ("non è in esecuzione"). |
 | Suggerimenti nel modulo | I programmi con una finestra visibile, meno quelli che ospitano la shell (`applicationframehost.exe`, `textinputhost.exe`…): il campo resta libero, l'elenco è solo un aiuto. |
 | Presenza | Controllo ogni 10 s: F15 solo se Moka sta tenendo sveglio il PC e l'utente è fermo da almeno 50 s. Spenta di default, con l'avviso obbligatorio accanto all'interruttore. |
+
+### Decisioni prese rifacendo l'installer (0.6.1, 2026-09-28)
+
+- **Tre voci dichiarate invece di due che cambiano senso.** La terza ("disinstalla e fermati qui") mancava proprio: nel template, disinstallare voleva sempre dire reinstallare subito dopo. Chi voleva solo togliere Moka doveva passare dalle impostazioni di Windows.
+- **La riga che spiega cosa resta sta nella pagina, non in un messaggio dopo**: è l'unica domanda che uno si fa davanti a "disinstalla e reinstalla da capo", e vale la pena rispondere prima.
+- **Le caselle partono da com'è adesso**, non da un valore fisso: l'installer si riesegue soprattutto per aggiornare, e un aggiornamento che rimette un collegamento tolto è un'app che non ascolta.
+- **Silenzioso e passivo non toccano né desktop né menu Start.** È il caso dell'aggiornamento automatico, dove non c'è nessuno a scegliere: lì la cosa giusta è lasciare le cose come stanno, non ricrearle.
+- **Il collegamento sul desktop resta spento di default.** Moka vive nella barra delle applicazioni e parte da sola all'accesso: l'icona sul desktop è per chi la vuole, e ora c'è la casella per dirlo.
+- **Modificato il template invece di aggiungerci sopra.** `installer.nsi` è già una copia locale (viene da ClipVault), quindi non c'era niente da "non toccare"; ogni modifica porta un commento `Moka:` per ritrovarle il giorno che il template a monte cambia.
 
 ### Decisioni prese scrivendo la diagnostica (0.0.5, 2026-09-22)
 
@@ -250,6 +259,12 @@ In tutti i casi l'azione passa dal conto alla rovescia di 60 secondi annullabile
 ### Blocca il PC ora (0.6.0)
 
 Blocca lo schermo lasciando il PC sveglio: il download continua, tu vai via. Sta nel pannello, nel menu della tray e in `moka --lock`. Se Moka era spenta accende una sessione "finché non lo spegni", esattamente come "spegni lo schermo ora". Nelle Impostazioni c'è anche "spegnendo lo schermo, blocca anche il PC", per chi vuole i due gesti insieme.
+
+### L'installer (0.6.1)
+
+Quando Moka è già installata, l'installer apre una pagina **"Moka è già installato"** con tre scelte dichiarate: *Ripara* (che diventa *Aggiorna alla X* o *Torna alla versione X* secondo la versione trovata), *Disinstalla e poi installa da capo*, *Disinstalla e fermati qui*. Sotto, la riga che dice cosa resta: le impostazioni stanno fuori dalla cartella del programma e sopravvivono alla disinstallazione, che rimette com'era l'impostazione di Windows per il coperchio.
+
+Le tre caselle — avvio automatico, collegamento nel menu Start, collegamento sul desktop — stanno tutte nella pagina "Attività aggiuntive" e partono dallo stato attuale della macchina, così un aggiornamento non rimette quello che l'utente aveva tolto. Le decisioni dietro stanno sotto, in "Decisioni prese rifacendo l'installer".
 
 ### Protezioni
 
@@ -697,6 +712,16 @@ Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
 44. La classe `.toast` esisteva già (il messaggio "Salvato" delle Impostazioni, fisso e trasparente): la finestrella degli avvisi la ereditava e restava invisibile. Lezione generale: un foglio di stile condiviso fra più pagine vuole nomi di classe che non si pestino.
 45. `focusable: false` nella configurazione della finestra la mostra senza rubare il focus a chi sta scrivendo: giusto per un avviso che compare da solo.
 
+### Trovate rifacendo l'installer (0.6.1, 2026-09-28)
+
+66. In Git Bash `./setup.exe /S` non fa un'installazione silenziosa: MSYS riscrive `/S` in `S:/`, l'installer non riconosce il parametro e **si apre in modo interattivo** — cioè resta lì ad aspettare, o installa se qualcuno preme Invio. È la trappola 53 (`powercfg /lastwake`) in un altro punto, ma qui il prezzo è un'installazione vera. Da PowerShell: `Start-Process $setup -ArgumentList '/S'`.
+67. I controlli di una pagina NSIS, visti da UI Automation, sono `Pane` senza un nome utile: cercare "Avanti" per nome non trova niente. Si naviga da tastiera — e si contano gli Invio, perché **uno di troppo avvia l'installazione vera** (è successo: interrotta a metà e rimessa a posto con un'installazione silenziosa). Per guardare una sola pagina: lanciare, premere Invio il numero esatto di volte, fotografare, `Stop-Process`.
+68. Il testo di un controllo compare per intero nell'elenco di UI Automation anche quando sullo schermo è **tagliato**: la riga lunga sotto le tre scelte risultava presente e completa, e nell'immagine finiva a metà parola. Per un'etichetta su più righe la prova è la fotografia, non l'elenco dei nomi.
+69. Nel template NSIS di Tauri la casella "crea un collegamento sul desktop" **non esiste**: è il pulsante "mostra il leggimi" della pagina finale (`MUI_FINISHPAGE_SHOWREADME`) riusato con un altro testo. Chi la cerca nel codice non la trova, e chi aggiunge la propria si ritrova a chiederlo due volte.
+70. Lo stesso template crea **sempre** l'icona sul desktop nelle installazioni silenziose e passive, "perché la pagina finale viene saltata": cioè a ogni aggiornamento automatico. Un'icona cancellata dall'utente ricompare da sola, e nessuno la collega all'aggiornamento.
+71. In NSIS una variabile vuota è uno stato in più, e il confronto sbagliato lo perde: `${If} $Var = 0` è numerico e `""` vale 0, quindi "pagina mai mostrata" diventerebbe "l'utente ha tolto la spunta" — e l'aggiornamento automatico cancellerebbe il collegamento nel menu Start. Con `==` il confronto è fra stringhe e i tre stati restano tre (`""` silenzioso o passivo, `0` tolta, `1` messa).
+72. La pagina di reinstallazione del template ha due pulsanti il cui **significato cambia** con la versione trovata (`$R0`): quello in alto vuol dire "reinstalla" con la stessa versione e "disinstalla" con una più nuova, e il testo arriva da stringhe generiche. Funziona, ma la scelta la capisce solo chi ha in mente `$R0`. Tre voci scritte per esteso costano venti righe e si leggono da sole.
+
 ### Trovate scrivendo la 0.0.5 (2026-09-22)
 
 53. In Git Bash `powercfg /lastwake` risponde "Parametri non validi": MSYS riscrive `/lastwake` come un percorso. Serve `MSYS_NO_PATHCONV=1` (come per `adb` nel mega-repo).
@@ -760,10 +785,10 @@ Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
 - **Installer**:
   - scelta della cartella di installazione
   - "solo per me" / "per tutti" (`installMode`, da valutare)
-  - icona sul desktop
-  - avvio automatico nella pagina "Attività aggiuntive"
-  - template `installer.nsi` e `main.wxs` ripresi da ClipVault 0.3.9
-  - in modalità silenziosa (gli aggiornamenti automatici) la pagina viene saltata, quindi un aggiornamento non cambia mai la scelta sull'avvio automatico
+  - pagina "Moka è già installato" con tre scelte: ripara/aggiorna, disinstalla e reinstalla da capo, disinstalla e basta (0.6.1)
+  - pagina "Attività aggiuntive": avvio automatico, collegamento nel menu Start, collegamento sul desktop — tre caselle che partono dallo stato attuale della macchina (0.6.1)
+  - template `installer.nsi` e `main.wxs` ripresi da ClipVault 0.3.9, con le modifiche marcate `Moka:`
+  - in modalità silenziosa e passiva (gli aggiornamenti automatici) le pagine vengono saltate: un aggiornamento non cambia mai né l'avvio automatico né i collegamenti
   - il disinstallatore esegue `moka.exe --restore-lid` prima di togliere i file, così non resta mai l'impostazione del coperchio cambiata
 - **Auto-update**:
   - chiave minisign generata alla prima release pubblica (0.3) con `tauri signer generate`

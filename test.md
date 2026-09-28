@@ -102,6 +102,13 @@
 - [x] "Blocca il PC ora" presente nel pannello con il suo sottotitolo, e la casella "spegnendo lo schermo blocca anche il PC" si salva
 - [x] Contrasti delle parti nuove, chiaro e scuro: minimo 5,45:1 (Impostazioni) e 7,18:1 (pannello)
 
+2026-09-28, **LPT-MIKI**, installer della 0.6.1 (aperto per davvero, senza installare).
+
+- [x] Pagina **"Moka è già installato"** in italiano, con titolo e sottotitolo giusti, le tre scelte e la riga che spiega che le impostazioni sopravvivono: si legge tutto, niente tagliato
+- [x] La prima voce si chiama "Ripara: reinstalla la stessa versione" perché la versione trovata è la stessa, ed è preselezionata
+- [x] Pagina **"Attività aggiuntive"** con tre caselle, spuntate secondo lo stato vero della macchina: avvio automatico sì, collegamento nel menu Start sì, collegamento sul desktop no
+- [x] La pagina finale non chiede più il collegamento sul desktop una seconda volta
+
 ## Da verificare
 
 Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) oppure un altro PC.
@@ -121,6 +128,17 @@ Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) opp
 - [ ] Scala 100%, 125%, 150%: icona nitida, pannello posizionato bene
 - [ ] Installer NSIS e MSI (workflow `build`): installazione, avvio, disinstallazione
 - [ ] Installer NSIS interattivo: la pagina "Attività aggiuntive" in italiano, la casella dell'avvio automatico funziona
+
+### Installer (0.6.1) — le scelte portate fino in fondo
+
+Le pagine sono state guardate, non eseguite: ognuna di queste voci installa o rimuove Moka per davvero.
+
+- [ ] **Ripara**: reinstalla la stessa versione e le impostazioni restano (sessioni, regole, soglia batteria, lingua)
+- [ ] **Disinstalla e poi installa da capo**: Moka sparisce e torna, e le impostazioni restano comunque (stanno in `%APPDATA%`)
+- [ ] **Disinstalla e fermati qui**: l'installer si chiude senza reinstallare niente, la voce sparisce da "App e funzionalità", e l'impostazione di Windows per il coperchio torna com'era
+- [ ] Togliendo la spunta a **"collegamento nel menu Start"** il collegamento viene rimosso; rimettendola ricompare
+- [ ] Spuntando **"collegamento sul desktop"** l'icona compare; togliendola sparisce
+- [ ] **Aggiornamento automatico** (installazione passiva) da una versione alla successiva: né il desktop né il menu Start vengono toccati, e l'avvio automatico resta com'era
 - [ ] MSI: disinstallazione con la modifica del coperchio attiva (serve l'amministratore)
 - [ ] "…e poi" eseguito davvero: blocca, sospendi, iberna, arresta (non provati: avrebbero fermato il PC di lavoro)
 - [ ] Aggiornamento vero da una versione pubblicata alla successiva (serve il repo pubblico): mai durante una sessione, l'impostazione del coperchio rimessa prima
