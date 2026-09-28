@@ -100,6 +100,11 @@ pub struct Settings {
     pub shortcut_toggle: String,
     /// Tasto rapido per spegnere lo schermo ("" = nessuno).
     pub shortcut_screen_off: String,
+    /// Cosa fare quando una sessione finisce, se non si sceglie altro nel
+    /// pannello. Predefinito: niente.
+    pub default_then: ThenAct,
+    /// Spegnendo lo schermo, blocca anche il PC.
+    pub lock_on_screen_off: bool,
     /// Regole automatiche ("tieni sveglio mentre…").
     pub rules: Vec<Rule>,
     /// Presenza: F15 quando l'utente è inattivo. Spenta di default.
@@ -121,6 +126,8 @@ impl Default for Settings {
             warn_before_end: true,
             shortcut_toggle: String::new(),
             shortcut_screen_off: String::new(),
+            default_then: ThenAct::None,
+            lock_on_screen_off: false,
             rules: Vec::new(),
             presence: false,
         }
@@ -166,6 +173,8 @@ impl Settings {
                 .and_then(Value::as_str)
                 .map(normalize_shortcut)
                 .unwrap_or_default(),
+            default_then: field(v, "defaultThen").unwrap_or(d.default_then),
+            lock_on_screen_off: bool_field(v, "lockOnScreenOff").unwrap_or(d.lock_on_screen_off),
             rules: rules::from_value(v.get("rules")),
             presence: bool_field(v, "presence").unwrap_or(d.presence),
         }
@@ -470,6 +479,22 @@ mod tests {
             "shortcutScreenOff": "Ctrl+Shift+F9"
         }));
         assert_eq!(s.shortcut_screen_off, "", "lo stesso tasto non fa due cose");
+    }
+
+    #[test]
+    fn end_of_session_defaults() {
+        let d = Settings::default();
+        assert_eq!(d.default_then, ThenAct::None, "di serie non fa niente");
+        assert!(!d.lock_on_screen_off);
+        let s = Settings::from_value(&json!({
+            "defaultThen": "sleep",
+            "lockOnScreenOff": true,
+        }));
+        assert_eq!(s.default_then, ThenAct::Sleep);
+        assert!(s.lock_on_screen_off);
+        // Un valore inventato non deve diventare un'azione sul PC.
+        let s = Settings::from_value(&json!({ "defaultThen": "autodistruzione" }));
+        assert_eq!(s.default_then, ThenAct::None);
     }
 
     #[test]

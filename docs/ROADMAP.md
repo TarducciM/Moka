@@ -1,6 +1,6 @@
 # Moka — piano di progetto
 
-> **Stato: 0.5.0, prima release pubblica.** Tutto il codice fino alla 0.5 (diagnostica, regole su USB e rete, memoria del pannello) è scritto e provato su LPT-MIKI; la pubblicazione della prima release aspetta lo spike e i passi di Michele in [`RELEASE.md`](RELEASE.md). In dettaglio: Il nucleo della 0.1 e tutta la parte della 0.2 che non dipende dallo spike sono scritti e verificati su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md). Lo spike decide **quali richieste** tenere a coperchio chiuso, non come si cambia e si rimette l'impostazione di Windows, che è già fatto e provato.
+> **Stato: 0.6.0** (la 0.5.0 è la release pubblicata; la 0.6.0 aggiunge le opzioni di fine sessione e "Blocca il PC ora"). Tutto il codice fino alla 0.5 (diagnostica, regole su USB e rete, memoria del pannello) è scritto e provato su LPT-MIKI; la pubblicazione della prima release aspetta lo spike e i passi di Michele in [`RELEASE.md`](RELEASE.md). In dettaglio: Il nucleo della 0.1 e tutta la parte della 0.2 che non dipende dallo spike sono scritti e verificati su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md). Lo spike decide **quali richieste** tenere a coperchio chiuso, non come si cambia e si rimette l'impostazione di Windows, che è già fatto e provato.
 >
 > Questo file è il punto di ripresa: chi riprende il lavoro, da qualunque PC, parte da qui. Va aggiornato a ogni passaggio significativo, insieme a `CHANGELOG.md`.
 >
@@ -237,6 +237,19 @@ Se il PC si è sospeso comunque durante la sessione (coperchio chiuso, tasto di 
 **Stato effettivo** = sessione manuale + regole attive. Vale la modalità più "forte" (schermo acceso batte solo PC).
 
 Il popover dice sempre il perché: *"Sveglio perché: OBS è aperto"*. Se si spegne a mano mentre una regola è attiva, Moka chiede se sospendere le regole per un'ora o fino al prossimo avvio: altrimenti la regola riaccenderebbe tutto cinque secondi dopo.
+
+### Fine di una sessione (0.6.0)
+
+Quando il tempo finisce, Moka **non** sospende niente da sé: rilascia il PC e Windows torna a comportarsi come dice il suo piano energetico (che su molti portatili in carica è "non sospendere mai"). Chi vuole altro lo sceglie:
+
+- **nelle Impostazioni**, "Quando una sessione finisce": niente, spegni lo schermo, blocca, sospendi, iberna, arresta. È il predefinito di ogni sessione;
+- **nel pannello**, la riga "Poi", che cambia solo la sessione in corso: finita, si torna al predefinito.
+
+In tutti i casi l'azione passa dal conto alla rovescia di 60 secondi annullabile (10 s in silenzio a coperchio chiuso). Il motivo per cui la scelta del pannello non resta è che uno "spegni il PC" dimenticato lì scatterebbe a sorpresa settimane dopo; un predefinito scritto nelle Impostazioni invece è una scelta visibile, quindi resta.
+
+### Blocca il PC ora (0.6.0)
+
+Blocca lo schermo lasciando il PC sveglio: il download continua, tu vai via. Sta nel pannello, nel menu della tray e in `moka --lock`. Se Moka era spenta accende una sessione "finché non lo spegni", esattamente come "spegni lo schermo ora". Nelle Impostazioni c'è anche "spegnendo lo schermo, blocca anche il PC", per chi vuole i due gesti insieme.
 
 ### Protezioni
 

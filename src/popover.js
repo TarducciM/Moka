@@ -242,6 +242,7 @@
   });
 
   $("screen-off").addEventListener("click", () => act("screen_off"));
+  $("lock-now").addEventListener("click", () => act("lock_now"));
   $("open-settings").addEventListener("click", () => act("open_settings"));
   $("welcome-ok").addEventListener("click", () => act("dismiss_welcome"));
   lidSwitch.addEventListener("click", () => act("set_lid", { on: !state.lid }));

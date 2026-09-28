@@ -158,6 +158,7 @@ impl TrayMenu {
         } else {
             None
         };
+        let lock = MenuItem::with_id(app, "lock", t(lang, "menu.lock"), true, None::<&str>)?;
         let screen_off = MenuItem::with_id(
             app,
             "screen_off",
@@ -202,6 +203,7 @@ impl TrayMenu {
             items.push(lid);
         }
         items.push(&screen_off);
+        items.push(&lock);
         if let Some(rules) = &rules {
             items.push(rules);
         }

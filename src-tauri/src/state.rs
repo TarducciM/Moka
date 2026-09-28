@@ -433,7 +433,15 @@ impl Core {
     pub fn set_settings(&mut self, next: Settings) -> std::io::Result<()> {
         let before = std::mem::replace(&mut self.settings, next);
         match self.save_settings() {
-            Ok(()) => Ok(()),
+            Ok(()) => {
+                // Cambiando il "…e poi" predefinito, il pannello lo mostra
+                // subito: senza sessione in corso non c'è niente da rispettare.
+                if self.session.is_none() && self.settings.default_then != before.default_then {
+                    self.memory.next_then = self.settings.default_then;
+                    self.save_memory();
+                }
+                Ok(())
+            }
             Err(err) => {
                 self.settings = before;
                 Err(err)
@@ -485,7 +493,7 @@ impl Core {
         self.session = None;
         self.countdown = None;
         self.warning_until = None;
-        self.memory.next_then = ThenAct::None;
+        self.memory.next_then = self.settings.default_then;
         self.apply(now);
     }
 
@@ -927,17 +935,36 @@ impl Core {
     /// riaccenderebbe e resterebbe acceso. La scelta per le prossime volte non
     /// cambia.
     pub fn prepare_screen_off(&mut self, now: Now) {
+        self.keep_awake_for(Mode::System, now);
+        if self.settings.lock_on_screen_off {
+            self.effects.push(Effect::Lock);
+        }
+        self.apply(now);
+    }
+
+    /// "Blocca ora": blocca il PC e lo lascia sveglio, così un download o una
+    /// copia lunga vanno avanti mentre non ci sei. Se non c'è una sessione ne
+    /// accende una "finché non lo spegni", come fa "spegni lo schermo ora".
+    pub fn lock_now(&mut self, now: Now) {
+        self.keep_awake_for(Mode::System, now);
+        self.effects.push(Effect::Lock);
+        self.apply(now);
+    }
+
+    /// Assicura che il PC resti sveglio: tiene la sessione che c'è (portandola
+    /// alla modalità chiesta) o ne accende una senza fine.
+    fn keep_awake_for(&mut self, mode: Mode, now: Now) {
         match &mut self.session {
             None => {
-                let mut s = Session::start(Mode::System, Spec::Never, now, &Local);
+                let mut s = Session::start(mode, Spec::Never, now, &Local);
                 s.lid = self.memory.last_lid;
+                s.then = self.memory.next_then;
                 self.session = Some(s);
                 self.countdown = None;
                 self.arm_battery();
             }
-            Some(s) => s.mode = Mode::System,
+            Some(s) => s.mode = mode,
         }
-        self.apply(now);
     }
 
     pub fn dismiss_welcome(&mut self) {
@@ -953,7 +980,11 @@ impl Core {
         if let Some(s) = self.session.filter(|s| s.is_expired(now)) {
             self.session = None;
             self.warning_until = None;
-            self.memory.next_then = ThenAct::None;
+            // Torna al predefinito delle Impostazioni, non a "niente": se
+            // l'utente ha scelto "a fine sessione sospendi", vale anche per
+            // la prossima. Una scelta diversa fatta nel pannello vale solo
+            // per la sessione in corso.
+            self.memory.next_then = self.settings.default_then;
             // Se il PC ha dormito oltre la scadenza, la sessione finisce e
             // basta: niente spegnimento a sorpresa appena lo si riapre.
             if s.then != ThenAct::None && s.overdue_ms(now) <= LATE_MS {

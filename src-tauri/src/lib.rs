@@ -83,6 +83,7 @@ pub fn run() {
             commands::toggle_session,
             commands::set_mode,
             commands::screen_off,
+            commands::lock_now,
             commands::dismiss_welcome,
             commands::hide_popover,
             commands::fit_popover,
@@ -276,6 +277,7 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
             control::set_lid(app, !current);
         }
         "screen_off" => control::screen_off(app),
+        "lock" => control::lock_now(app),
         "rules" => {
             let paused = app
                 .state::<AppState>()

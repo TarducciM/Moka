@@ -144,6 +144,12 @@ pub fn set_mode(app: AppHandle, mode: Mode) {
     control::set_mode(&app, mode);
 }
 
+/// "Blocca ora": blocca il PC lasciandolo sveglio.
+#[tauri::command]
+pub fn lock_now(app: AppHandle) {
+    control::lock_now(&app);
+}
+
 #[tauri::command]
 pub fn screen_off(app: AppHandle) {
     control::screen_off(&app);
@@ -385,6 +391,8 @@ pub struct SettingsDto {
     pub lid_held: bool,
     pub lid_error: Option<String>,
     pub warn_before_end: bool,
+    pub default_then: ThenAct,
+    pub lock_on_screen_off: bool,
     pub shortcut_toggle: String,
     pub shortcut_screen_off: String,
     pub shortcut_choices: Vec<ShortcutChoice>,
@@ -447,6 +455,8 @@ pub struct SettingsPatch {
     pub backpack_minutes: Option<u32>,
     pub battery_threshold: Option<u32>,
     pub warn_before_end: Option<bool>,
+    pub default_then: Option<ThenAct>,
+    pub lock_on_screen_off: Option<bool>,
     pub shortcut_toggle: Option<String>,
     pub shortcut_screen_off: Option<String>,
     pub presence: Option<bool>,
@@ -545,6 +555,8 @@ fn settings_dto(app: &AppHandle) -> SettingsDto {
             .as_ref()
             .map(|e| tv(lang, "settings.lid_error", &[("error", e)])),
         warn_before_end: core.settings.warn_before_end,
+        default_then: core.settings.default_then,
+        lock_on_screen_off: core.settings.lock_on_screen_off,
         shortcut_toggle: core.settings.shortcut_toggle.clone(),
         shortcut_screen_off: core.settings.shortcut_screen_off.clone(),
         shortcut_choices: SHORTCUT_CHOICES
@@ -739,6 +751,12 @@ pub fn update_settings(app: AppHandle, patch: SettingsPatch) -> Result<SettingsD
         }
         if let Some(w) = patch.warn_before_end {
             next.warn_before_end = w;
+        }
+        if let Some(t) = patch.default_then {
+            next.default_then = t;
+        }
+        if let Some(l) = patch.lock_on_screen_off {
+            next.lock_on_screen_off = l;
         }
         if let Some(s) = &patch.shortcut_toggle {
             next.shortcut_toggle = normalize_shortcut(s);

@@ -153,6 +153,12 @@ pub fn on_sys_event(app: &AppHandle, event: SysEvent) {
     with_core(app, |c| c.on_sys_event(event, sys::now()));
 }
 
+/// Blocca il PC lasciandolo sveglio.
+pub fn lock_now(app: &AppHandle) {
+    with_core(app, |c| c.lock_now(sys::now()));
+    popover::hide(app);
+}
+
 /// Spegne lo schermo lasciando il PC sveglio. L'attesa prima di spegnere non
 /// è estetica: il clic che l'ha chiesto sta ancora finendo (rilascio del
 /// tasto, piccolo movimento del mouse), e un input subito dopo lo
@@ -201,6 +207,7 @@ pub fn apply_cli(app: &AppHandle, action: Action, from_second_instance: bool) {
         Action::Off => stop(app),
         Action::Toggle => toggle(app),
         Action::ScreenOff => screen_off(app),
+        Action::Lock => lock_now(app),
         Action::Quit => quit(app),
         Action::Autostart(enable) => set_autostart(app, enable),
         Action::SetThen(act) => {

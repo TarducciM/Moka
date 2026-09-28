@@ -149,6 +149,7 @@
       </section>
 
       <footer class="foot">
+        <div class="foot-row">
         <button type="button" class="row-btn" id="screen-off">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M19.5 14.6A7.8 7.8 0 0 1 9.4 4.5a7.8 7.8 0 1 0 10.1 10.1z" />
@@ -170,6 +171,17 @@
             <circle cx="15" cy="7.5" r="2.2" />
             <circle cx="9" cy="16.5" r="2.2" />
           </svg>
+        </button>
+        </div>
+        <button type="button" class="row-btn" id="lock-now">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="4.5" y="10.5" width="15" height="9.5" rx="2" />
+            <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7" />
+          </svg>
+          <span class="row-btn-text">
+            <span data-i18n="popover.lock_now"></span>
+            <small data-i18n="popover.lock_hint"></small>
+          </span>
         </button>
       </footer>
     </main>

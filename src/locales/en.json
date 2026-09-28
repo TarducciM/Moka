@@ -349,5 +349,13 @@
   "diag.admin_cancelled": "Without administrator permission Windows doesn't say who keeps it awake.",
   "diag.admin_failed": "Windows didn't answer: {error}",
 
+  "popover.lock_now": "Lock the PC now",
+  "popover.lock_hint": "It stays awake: whatever it's doing keeps going",
+  "menu.lock": "Lock the PC now",
+  "settings.default_then": "When a session ends",
+  "settings.default_then_hint": "By itself Moka does nothing: it lets the PC go and Windows goes back to its usual behaviour. Here you choose what to do every time; in the panel you can change it for the current session. There is always a countdown you can cancel.",
+  "settings.lock_on_screen_off": "When turning off the screen, lock the PC too",
+  "settings.lock_on_screen_off_hint": "Handy when you step away: screen off, PC locked, and whatever it's doing keeps going.",
+
   "keys.shift": "Shift"
 }

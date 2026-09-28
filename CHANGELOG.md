@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-28 — 0.6.0: la fine della sessione si decide una volta sola, e un tasto per bloccare
+
+Nate da una domanda di Michele ("cosa succede quando finisce il tempo? va subito in standby?") che ha mostrato due cose: la risposta non era ovvia, e due funzioni che c'erano già non si trovavano.
+
+- **"Quando una sessione finisce"** è ora un'impostazione: niente, spegni lo schermo, blocca, sospendi, iberna o arresta. Prima la scelta stava solo nel pannello e si azzerava a ogni sessione (per non far scattare uno spegnimento dimenticato settimane dopo). Ora il predefinito resta, e quello scelto nel pannello vale solo per la sessione in corso: finita, si torna al predefinito. Resta sempre il conto alla rovescia annullabile di 60 secondi.
+- **"Blocca il PC ora"**: nel pannello, nel menu della tray e da riga di comando (`moka --lock`). Blocca lo schermo **lasciando il PC sveglio**, così un download o una copia lunga vanno avanti mentre non ci sei. Se Moka era spenta, accende una sessione "finché non lo spegni", come fa già "spegni lo schermo ora".
+- **"Spegnendo lo schermo, blocca anche il PC"**: una casella nelle Impostazioni, per chi si allontana dalla scrivania.
+- Per chiarezza, visto che non era ovvio: **quando il tempo finisce Moka non sospende niente**. Rilascia il PC e Windows torna a comportarsi come dice il suo piano energetico. Se vuoi che faccia qualcosa, ora lo scegli una volta nelle Impostazioni.
+- Verificato su LPT-MIKI: il predefinito compare subito nel pannello, la sessione lo eredita, una scelta diversa nel pannello non lo sovrascrive e a fine sessione si torna al predefinito; contrasti a posto in chiaro e scuro. **Da provare con un clic**: il blocco vero (blocca davvero il PC, quindi non l'ho eseguito io).
+
 ## 2026-09-23 — l'aggiornamento automatico provato per davvero
 
 Nessun cambio di codice (versione invariata, 0.5.0): la prova che mancava, fatta su LPT-MIKI appena pubblicata la release.

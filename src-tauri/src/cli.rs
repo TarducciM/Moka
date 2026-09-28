@@ -12,6 +12,7 @@
 //! moka --toggle             accende o spegne, come il clic sull'icona
 //! moka --off                spegne
 //! moka --screen-off         spegne subito lo schermo, il PC resta sveglio
+//! moka --lock               blocca il PC, che resta sveglio
 //! moka --quit               chiude Moka (la sessione finisce)
 //! moka --then sleep         a fine sessione: display-off | lock | sleep | hibernate |
 //!                           shutdown | none (da solo: vale per la sessione in corso)
@@ -51,6 +52,8 @@ pub enum Action {
     Off,
     Toggle,
     ScreenOff,
+    /// Blocca il PC lasciandolo sveglio.
+    Lock,
     /// Chiude Moka: la sessione finisce e non viene ripresa.
     Quit,
     /// Rimette l'impostazione del coperchio da un registro lasciato lì ed
@@ -144,6 +147,7 @@ where
             "--off" => explicit = Some(Action::Off),
             "--toggle" => explicit = Some(Action::Toggle),
             "--screen-off" => explicit = Some(Action::ScreenOff),
+            "--lock" => explicit = Some(Action::Lock),
             "--quit" => explicit = Some(Action::Quit),
             "--restore-lid" => explicit = Some(Action::RestoreLid),
             "--lid" => lid = Some(true),
@@ -277,6 +281,7 @@ mod tests {
         assert_eq!(action(&["--for", "2h", "--off"]), Action::Off);
         assert_eq!(action(&["--toggle"]), Action::Toggle);
         assert_eq!(action(&["--screen-off"]), Action::ScreenOff);
+        assert_eq!(action(&["--lock"]), Action::Lock);
         assert_eq!(action(&["--quit"]), Action::Quit);
         assert_eq!(action(&["--restore-lid"]), Action::RestoreLid);
         assert_eq!(action(&["--enable-autostart"]), Action::Autostart(true));

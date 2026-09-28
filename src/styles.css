@@ -548,10 +548,16 @@ svg {
 
 .foot {
   display: flex;
-  align-items: stretch;
-  gap: 8px;
+  flex-direction: column;
+  gap: 2px;
   border-top: 1px solid var(--border);
   padding-top: 12px;
+}
+
+.foot-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
 }
 
 .row-btn {

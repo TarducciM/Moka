@@ -95,6 +95,13 @@
 - [x] Dopo l'aggiornamento: nessun residuo (niente `RunOnce`, coperchio "sospendi" in carica e a batteria), voce in "App e funzionalità" con la versione giusta
 - [x] ⚠️ L'installer avviato dall'updater riceve `/UPDATE` e **non crea il collegamento nel menu Start** (in un aggiornamento normale esiste già). Rieseguendo l'installer in modo normale (`/S`) il collegamento compare, e viene attivato anche l'avvio automatico
 
+2026-09-28, **LPT-MIKI**, Moka 0.6.0.
+
+- [x] "Quando una sessione finisce" nelle Impostazioni: scelto "Sospendi", il pannello mostra subito "Sospendi" nella riga "Poi"; una sessione nuova lo eredita; cambiandolo nel pannello a "Blocca" vale solo per quella in corso; finita la sessione si torna a "Sospendi"
+- [x] Le sei scelte compaiono tradotte (Niente, Spegni lo schermo, Blocca il PC, Sospendi, Iberna, Arresta il sistema)
+- [x] "Blocca il PC ora" presente nel pannello con il suo sottotitolo, e la casella "spegnendo lo schermo blocca anche il PC" si salva
+- [x] Contrasti delle parti nuove, chiaro e scuro: minimo 5,45:1 (Impostazioni) e 7,18:1 (pannello)
+
 ## Da verificare
 
 Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) oppure un altro PC.
@@ -118,6 +125,13 @@ Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) opp
 - [ ] "…e poi" eseguito davvero: blocca, sospendi, iberna, arresta (non provati: avrebbero fermato il PC di lavoro)
 - [ ] Aggiornamento vero da una versione pubblicata alla successiva (serve il repo pubblico): mai durante una sessione, l'impostazione del coperchio rimessa prima
 - [ ] Promemoria stella dopo 5 avvii e 3 giorni
+
+### Fine sessione e blocco (0.6.0)
+
+- [ ] **"Blocca il PC ora"** dal pannello: il PC si blocca davvero e resta sveglio (un download in corso continua); non eseguito nelle prove perché bloccherebbe la macchina di chi lavora
+- [ ] Stessa cosa dalla voce del menu della tray e da `moka --lock`
+- [ ] "Spegnendo lo schermo, blocca anche il PC" attivo: "Spegni lo schermo ora" spegne **e** blocca
+- [ ] "Quando una sessione finisce: sospendi" con una sessione di 1 minuto: alla scadenza parte il conto alla rovescia e, se non lo annulli, il PC si sospende davvero
 
 ### Rete di sicurezza del coperchio (0.0.8)
 

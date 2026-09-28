@@ -349,5 +349,13 @@
   "diag.admin_cancelled": "Senza il permesso dell'amministratore Windows non dice chi lo tiene sveglio.",
   "diag.admin_failed": "Windows non ha risposto: {error}",
 
+  "popover.lock_now": "Blocca il PC ora",
+  "popover.lock_hint": "Resta sveglio: quello che sta facendo continua",
+  "menu.lock": "Blocca il PC ora",
+  "settings.default_then": "Quando una sessione finisce",
+  "settings.default_then_hint": "Di suo Moka non fa niente: lascia il PC e Windows torna a comportarsi come al solito. Qui scegli cosa fare ogni volta; nel pannello puoi cambiarlo per la sessione in corso. C'è sempre un conto alla rovescia annullabile.",
+  "settings.lock_on_screen_off": "Spegnendo lo schermo, blocca anche il PC",
+  "settings.lock_on_screen_off_hint": "Comodo se ti allontani: schermo spento, PC bloccato, e quello che sta facendo continua.",
+
   "keys.shift": "Maiusc"
 }

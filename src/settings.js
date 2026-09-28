@@ -21,6 +21,8 @@
   const lockOnOpen = $("lock-on-open");
   const batteryThreshold = $("battery-threshold");
   const warnBeforeEnd = $("warn-before-end");
+  const defaultThen = $("default-then");
+  const lockOnScreenOff = $("lock-on-screen-off");
   const shortcutToggle = $("shortcut-toggle");
   const shortcutScreenOff = $("shortcut-screen-off");
   const updateStatus = $("update-status");
@@ -76,6 +78,8 @@
     fillSelect(batteryThreshold, s.batteryChoices, s.batteryThreshold);
 
     warnBeforeEnd.checked = s.warnBeforeEnd;
+    fillSelect(defaultThen, s.thenChoices, s.defaultThen);
+    lockOnScreenOff.checked = s.lockOnScreenOff;
     fillSelect(shortcutToggle, s.shortcutChoices, s.shortcutToggle);
     fillSelect(shortcutScreenOff, s.shortcutChoices, s.shortcutScreenOff);
     $("shortcut-error").hidden = !s.shortcutError;
@@ -384,6 +388,10 @@
     save({ batteryThreshold: Number(batteryThreshold.value) }),
   );
   warnBeforeEnd.addEventListener("change", () => save({ warnBeforeEnd: warnBeforeEnd.checked }));
+  defaultThen.addEventListener("change", () => save({ defaultThen: defaultThen.value }));
+  lockOnScreenOff.addEventListener("change", () =>
+    save({ lockOnScreenOff: lockOnScreenOff.checked }),
+  );
   shortcutToggle.addEventListener("change", () => save({ shortcutToggle: shortcutToggle.value }));
   shortcutScreenOff.addEventListener("change", () =>
     save({ shortcutScreenOff: shortcutScreenOff.value }),
