@@ -110,6 +110,15 @@
 - [x] Pagina **"Attività aggiuntive"** con tre caselle, spuntate secondo lo stato vero della macchina: avvio automatico sì, collegamento nel menu Start sì, collegamento sul desktop no
 - [x] La pagina finale non chiede più il collegamento sul desktop una seconda volta
 
+2026-09-28, **LPT-MIKI**, installazione dell'installer **pubblicato** 0.6.1 sopra la 0.6.0 installata (silenziosa, `Start-Process -ArgumentList '/S'`).
+
+- [x] Uscita 0, versione in "App e funzionalità" e nell'eseguibile passate a 0.6.1
+- [x] Impostazioni dell'utente intatte (`%APPDATA%\com.moka.app\settings.json`: soglia batteria, coperchio "solo in carica", blocco alla riapertura, durate)
+- [x] **Nessuna icona creata sul desktop** — è il comportamento nuovo, e questa è la prova nel percorso vero (prima il template ce la rimetteva a ogni installazione silenziosa)
+- [x] Collegamento nel menu Start ancora al suo posto
+- [x] Impostazione di Windows per il coperchio invariata (CA e CC = 1, "sospendi") e nessun valore `MokaRestoreLid-*` rimasto in `RunOnce`
+- [x] `latest.json` servito da `releases/latest/download` dice 0.6.1 e porta la firma
+
 ## Da verificare
 
 Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) oppure un altro PC.
