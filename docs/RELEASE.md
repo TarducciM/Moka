@@ -75,6 +75,13 @@ Il workflow controlla che il tag coincida con la versione dell'app: un `v0.5.0` 
 | Sito (DNS `moka.mtsolutions.studio`), voce nella home di mtsolutions.studio, revisione legale delle pagine | da fare |
 | Spike (`docs/SPIKE.md`) | non fatto: le promesse sul coperchio restano dichiarate "in prova" nel sito, nel README e nelle note della release |
 
+### Versioni pubblicate
+
+| Versione | Data | Note |
+|---|---|---|
+| [0.5.0](https://github.com/TarducciM/Moka/releases/tag/v0.5.0) | 2026-09-23 | prima release pubblica; updater provato per davvero da una 0.4.0 finta |
+| [0.6.0](https://github.com/TarducciM/Moka/releases/tag/v0.6.0) | 2026-09-28 | opzioni di fine sessione e "Blocca il PC ora"; stessa procedura, ~11 minuti dal tag alla bozza |
+
 Le versioni successive seguono la sezione "A ogni versione" qui sopra: versione allineata, CHANGELOG, push, CI verde, tag `vX.Y.Z`, controllo della bozza, pubblicazione.
 
 ## Verificato in locale (2026-09-22, LPT-MIKI)
