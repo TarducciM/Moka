@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-05 — il README non dice più che Moka è in sviluppo
+
+Nessun cambio di codice dell'app (versione invariata, 0.6.1): il README diceva ancora **"Stato: in sviluppo (0.0.3). Il nucleo funziona; non c'è ancora una release"**, con tre release pubblicate alle spalle — ed era la prima cosa che leggeva chi arrivava dal repo.
+
+- **Sezione "Installare"**, che mancava del tutto: link all'ultima release, quale dei tre file scegliere, installazione per il solo utente in `%LOCALAPPDATA%` senza amministratore, le tre caselle e la pagina di manutenzione dell'installer (0.6.1), l'avviso SmartScreen perché non è firmata, WebView2, e come funzionano gli aggiornamenti automatici.
+- **"Dove stanno i tuoi dati"**: `%APPDATA%\com.moka.app`, fuori dalla cartella del programma, quindi sopravvive ad aggiornamenti e disinstallazione; e l'unica connessione che Moka apre è il controllo degli aggiornamenti.
+- **Schermate nuove** del pannello, chiara e scura, generate dalla 0.6.1: le vecchie erano della 0.0.x e non avevano né la riga "Poi" né "Blocca il PC ora". Sono anche quelle del sito, che mostrava quindi un pannello che non esiste più.
+- Il link per rimettere l'impostazione del coperchio ha una sua sezione, e il rimando dalla versione portable ci punta.
+- **Sito**: il riquadro di riserva diceva "Moka è in sviluppo attivo e non ha ancora pubblicato una prima release… appena esce la v0.1.0" — e compare ogni volta che GitHub non risponde (niente rete, troppe richieste), quindi era una bugia visibile. Ora dice che l'elenco dei file non è disponibile e manda alla pagina delle release. Stessa cosa per l'etichetta della versione, che di partenza diceva "in sviluppo".
+
 ## 2026-09-28 — 0.6.1: l'installer dice cosa sta per fare, e chiede i collegamenti una volta sola
 
 Chiesto da Michele ("nell'installer sarebbe figo ripara, aggiorna, disinstalla o disinstalla e reinstalla, più la casella del collegamento nel menu Start"). Dentro l'app non cambia niente: cambia il programma di installazione.

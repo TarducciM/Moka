@@ -1,6 +1,13 @@
 # Moka
 
+Tieni sveglio il PC Windows dalla tray. · Keep your Windows PC awake from the tray.
+
 [🇮🇹 Italiano](#italiano) · [🇬🇧 English](#english)
+
+<p>
+  <img src="site/img/panel-light.png" alt="Il pannello di Moka in tema chiaro" width="320" />
+  <img src="site/img/panel-dark.png" alt="Il pannello di Moka in tema scuro" width="320" />
+</p>
 
 ---
 
@@ -8,9 +15,27 @@
 
 Tieni sveglio il tuo PC Windows, nello spirito di [Amphetamine](https://apps.apple.com/us/app/amphetamine/id937984704?mt=12) su macOS: dalla tray scegli se tenere acceso il PC, anche lo schermo, oppure spegnere solo lo schermo lasciando il PC sveglio — a tempo, fino a un'ora precisa, per sempre, o con regole automatiche.
 
-**Stato: in sviluppo (0.0.3).** Il nucleo funziona; non c'è ancora una release. Il piano completo è in [docs/ROADMAP.md](docs/ROADMAP.md).
+**Stato: 0.6.1, pubblicata.** Novità di ogni versione in [CHANGELOG.md](CHANGELOG.md), il piano completo in [docs/ROADMAP.md](docs/ROADMAP.md).
 
-### Cosa fa già
+### Installare
+
+**[⬇ Scarica l'ultima versione](https://github.com/TarducciM/Moka/releases/latest)** — Windows 10 o 11, 64 bit.
+
+| File | Quando sceglierlo |
+| --- | --- |
+| `Moka_x.y.z_x64-setup.exe` | **Consigliato.** Installer normale (NSIS) |
+| `Moka_x.y.z_x64_en-US.msi` | Se preferisci un MSI (distribuzione aziendale, criteri di gruppo) |
+| `Moka_x.y.z_x64-portable.exe` | Un solo eseguibile, nessuna installazione: per provarla |
+
+Moka si installa **solo per il tuo utente**, in `%LOCALAPPDATA%\Moka`: non serve l'amministratore. L'installer chiede, in un'unica pagina e con tre caselle che parti già spuntate come sta adesso sul tuo PC, se vuoi l'avvio automatico all'accesso, il collegamento nel menu Start e quello sul desktop. Rilanciandolo quando Moka c'è già, apre una pagina di manutenzione: **ripara** (o aggiorna) tenendo le impostazioni, **disinstalla e reinstalla da capo**, oppure **disinstalla e basta**. Si disinstalla da "App e funzionalità", e in ogni caso rimette com'era l'impostazione di Windows per il coperchio se Moka la stava cambiando.
+
+Non è firmata, quindi la prima volta Windows SmartScreen può mostrare un avviso ("Maggiori informazioni" → "Esegui comunque"). Serve il runtime WebView2, che c'è di serie su Windows 11 e su Windows 10 aggiornato; se manca, l'installer lo aggiunge.
+
+Gli aggiornamenti successivi arrivano da soli: Moka controlla una volta al giorno — è l'unico momento in cui si collega a Internet — verifica la firma di quello che scarica, e **non si aggiorna mai mentre una sessione è attiva**, perché il PC cadrebbe a metà. Puoi anche chiederlo tu da Impostazioni → Cerca aggiornamenti.
+
+La versione portable va bene per una prova. Se la cancelli mentre sta tenendo acceso un portatile a coperchio chiuso, l'impostazione di Windows resta cambiata: il comando per rimetterla a posto è [più sotto](#se-limpostazione-del-coperchio-resta-cambiata).
+
+### Cosa fa
 
 - Due modalità: solo il PC, oppure PC e schermo. In più "spegni lo schermo ora" lasciando il PC sveglio (sui portatili con standby moderno è ancora in prova: vedi [docs/SPIKE.md](docs/SPIKE.md))
 - Durate rapide (15 min … 4 h, personalizzabili), "fino alle HH:MM", "finché non lo spengo"
@@ -30,9 +55,14 @@ Tieni sveglio il tuo PC Windows, nello spirito di [Amphetamine](https://apps.app
 - Italiano e inglese
 - Completamente locale: nessun account, nessun cloud, nessuna telemetria
 
+### Dove stanno i tuoi dati
+
+Impostazioni, regole e stato stanno in `%APPDATA%\com.moka.app`, cioè **fuori** dalla cartella del programma: sopravvivono a un aggiornamento e anche a una disinstallazione. Niente esce dal PC, mai: l'unica connessione che Moka apre è il controllo degli aggiornamenti.
+
 ### Cosa farà
 
 - Pubblicazione su winget
+- Lo [spike sullo standby moderno](docs/SPIKE.md), che deciderà quanto si può promettere a coperchio chiuso sui portatili recenti
 
 ### Riga di comando
 
@@ -58,7 +88,9 @@ moka --resume-rules        le riattiva
 
 Se Moka è già aperta, il comando arriva a lei.
 
-Se l'impostazione del coperchio fosse rimasta cambiata (per esempio con la versione portable cancellata mentre la modifica era attiva), si rimette a mano da un prompt dei comandi:
+#### Se l'impostazione del coperchio resta cambiata
+
+Non dovrebbe succedere — Moka la rimette uscendo, dopo un crash e alla disinstallazione — ma se succede (per esempio cancellando la versione portable mentre la modifica era attiva), si rimette a mano da un prompt dei comandi:
 
 ```bash
 powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 1
@@ -83,8 +115,11 @@ npm install
 npm run dev                                          # Moka in modalità sviluppo
 cargo test --manifest-path src-tauri/Cargo.toml      # test Rust
 npm run check                                        # sintassi JS e traduzioni
+npm run version:check                                # versione allineata ovunque
 npm run build                                        # installer NSIS e MSI
 ```
+
+Documentazione di progetto: [ROADMAP](docs/ROADMAP.md) (decisioni, architettura, trappole già pagate), [RELEASE](docs/RELEASE.md) (come si pubblica una versione), [SPIKE](docs/SPIKE.md) (la prova sullo standby moderno), [test.md](test.md) (cosa è verificato davvero e cosa no).
 
 ### Licenza
 
@@ -96,9 +131,27 @@ npm run build                                        # installer NSIS e MSI
 
 Keep your Windows PC awake, in the spirit of [Amphetamine](https://apps.apple.com/us/app/amphetamine/id937984704?mt=12) on macOS: from the tray, choose whether to keep the system awake, the screen too, or turn off just the screen while the PC stays awake — for a set time, until a given time, indefinitely, or through automatic rules.
 
-**Status: in development (0.0.3).** The core works; there is no release yet. The full plan is in [docs/ROADMAP.md](docs/ROADMAP.md) (in Italian).
+**Status: 0.6.1, released.** What changed in each version is in [CHANGELOG.md](CHANGELOG.md); the full plan is in [docs/ROADMAP.md](docs/ROADMAP.md) (in Italian).
 
-### What it does today
+### Install
+
+**[⬇ Download the latest version](https://github.com/TarducciM/Moka/releases/latest)** — Windows 10 or 11, 64-bit.
+
+| File | When to pick it |
+| --- | --- |
+| `Moka_x.y.z_x64-setup.exe` | **Recommended.** Regular installer (NSIS) |
+| `Moka_x.y.z_x64_en-US.msi` | If you prefer an MSI (enterprise deployment, group policy) |
+| `Moka_x.y.z_x64-portable.exe` | A single executable, no install: for a quick try |
+
+Moka installs **for your user only**, into `%LOCALAPPDATA%\Moka`: no administrator needed. The installer asks on a single page, with three checkboxes that start from how your PC is right now, whether you want it to start with Windows, a Start menu shortcut and a desktop shortcut. Run it again when Moka is already installed and it opens a maintenance page: **repair** (or update) keeping your settings, **uninstall first and install from scratch**, or **uninstall and stop there**. It uninstalls from "Apps & features" and, either way, puts the Windows lid setting back as it was if Moka was changing it.
+
+It is not code-signed, so the first time Windows SmartScreen may show a warning ("More info" → "Run anyway"). It needs the WebView2 runtime, which ships with Windows 11 and with an up-to-date Windows 10; if it is missing, the installer adds it.
+
+Later updates arrive on their own: Moka checks once a day — the only moment it connects to the internet — verifies the signature of what it downloads, and **never updates while a session is active**, because the PC would drop out halfway. You can also ask for it from Settings → Check for updates.
+
+The portable build is fine for a quick try. If you delete it while it is keeping a laptop awake with the lid closed, the Windows setting stays changed: the command to restore it is [below](#if-the-lid-setting-stays-changed).
+
+### What it does
 
 - Two modes: PC only, or PC and screen. Plus "turn off the screen now" while the PC stays awake (still being tested on laptops with modern standby)
 - Quick durations (15 min … 4 h, customizable), "until HH:MM", "until I turn it off"
@@ -118,9 +171,14 @@ Keep your Windows PC awake, in the spirit of [Amphetamine](https://apps.apple.co
 - Italian and English UI
 - Fully local: no account, no cloud, no telemetry
 
+### Where your data lives
+
+Settings, rules and state live in `%APPDATA%\com.moka.app`, that is **outside** the program folder: they survive an update and even an uninstall. Nothing ever leaves the PC: the only connection Moka opens is the update check.
+
 ### Planned
 
 - Publishing on winget
+- The [modern standby spike](docs/SPIKE.md), which will decide how much can be promised with the lid closed on recent laptops
 
 ### Command line
 
@@ -146,6 +204,24 @@ moka --resume-rules        resume them
 
 If Moka is already running, the command goes to it.
 
+#### If the lid setting stays changed
+
+It shouldn't happen — Moka restores it on exit, after a crash and on uninstall — but if it does (for example by deleting the portable build while the change was active), restore it by hand from a command prompt:
+
+```bash
+powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 1
+```
+
+```bash
+powercfg /setdcvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 1
+```
+
+```bash
+powercfg /setactive SCHEME_CURRENT
+```
+
+(1 = sleep; on some laptops the setting is hidden and you can read it with `powercfg /qh SCHEME_CURRENT SUB_BUTTONS LIDACTION`.)
+
 ### Development
 
 You need the [Tauri toolchain](https://tauri.app/start/prerequisites/) (Rust with MSVC, Visual Studio Build Tools, WebView2, Node).
@@ -155,8 +231,11 @@ npm install
 npm run dev                                          # run Moka in development
 cargo test --manifest-path src-tauri/Cargo.toml      # Rust tests
 npm run check                                        # JS syntax and translations
+npm run version:check                                # version aligned everywhere
 npm run build                                        # NSIS and MSI installers
 ```
+
+Project docs (Italian): [ROADMAP](docs/ROADMAP.md) (decisions, architecture, traps already paid for), [RELEASE](docs/RELEASE.md) (how a version is published), [SPIKE](docs/SPIKE.md) (the modern standby test), [test.md](test.md) (what is actually verified and what is not).
 
 ### License
 
