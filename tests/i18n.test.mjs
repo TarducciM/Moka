@@ -28,7 +28,9 @@ const read = (dir, ext) =>
     .filter((f) => f.endsWith(ext))
     .map((f) => ({ file: f, text: readFileSync(join(dir, f), "utf8") }));
 
-const KEY = /^(state|time|mode|reason|menu|popover|settings|lid|notify|then|toast|update|keys|rules|days|diag)\.[a-z0-9_]+$/;
+// "update" è l'aggiornamento di Moka, "updates" quelli di Windows: due cose
+// diverse, due spazi di nomi diversi.
+const KEY = /^(state|time|mode|reason|menu|popover|settings|lid|notify|then|toast|update|updates|keys|rules|days|diag)\.[a-z0-9_]+$/;
 const placeholders = (s) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
 function usedKeys() {

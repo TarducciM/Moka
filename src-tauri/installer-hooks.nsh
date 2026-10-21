@@ -1,17 +1,21 @@
 ; Moka: agganci dell'installer NSIS (bundle.windows.nsis.installerHooks).
 ;
-; La regola: l'impostazione di Windows "Quando chiudo il coperchio" non resta
-; MAI cambiata. Chiudere Moka a forza con la modifica attiva (è ciò che fa
-; CheckIfAppIsRunning, subito dopo questi agganci) la lascerebbe cambiata, e
-; alla disinstallazione anche RunOnce punterebbe a un eseguibile appena
-; cancellato. Quindi prima si chiude Moka in modo pulito (--quit rimette tutto),
-; poi --restore-lid ripara un eventuale registro lasciato da un crash.
+; La regola: quello che Moka cambia in Windows non resta MAI cambiato. Sono
+; due cose: l'impostazione "Quando chiudo il coperchio" e la pausa degli
+; aggiornamenti di Windows (0.7.0). Chiudere Moka a forza con una delle due
+; attive (è ciò che fa CheckIfAppIsRunning, subito dopo questi agganci) le
+; lascerebbe lì, e alla disinstallazione anche RunOnce punterebbe a un
+; eseguibile appena cancellato. Quindi prima si chiude Moka in modo pulito
+; (--quit rimette tutto), poi i due ripristini riparano un eventuale registro
+; lasciato da un crash.
 
 !macro MOKA_CLOSE_CLEANLY
   ${If} ${FileExists} "$INSTDIR\${MAINBINARYNAME}.exe"
     nsExec::Exec '"$INSTDIR\${MAINBINARYNAME}.exe" --quit'
     Pop $0
     nsExec::Exec '"$INSTDIR\${MAINBINARYNAME}.exe" --restore-lid'
+    Pop $0
+    nsExec::Exec '"$INSTDIR\${MAINBINARYNAME}.exe" --restore-updates'
     Pop $0
   ${EndIf}
 !macroend

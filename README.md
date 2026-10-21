@@ -46,6 +46,7 @@ La versione portable va bene per una prova. Se la cancelli mentre sta tenendo ac
 - Soglia batteria: sotto una certa carica la sessione finisce da sola
 - "…e poi": a fine sessione spegni lo schermo, blocca, sospendi, iberna o spegni, sempre dopo un conto alla rovescia annullabile; e 5 minuti prima un avviso con "+30 min". Lo scegli una volta nelle Impostazioni ("Quando una sessione finisce") oppure solo per la sessione in corso dal pannello. Di suo, quando il tempo finisce, Moka non fa niente: lascia il PC e Windows torna a comportarsi come al solito
 - "Blocca il PC ora": blocca lo schermo lasciando il PC sveglio, così quello che sta facendo continua (anche da `moka --lock`)
+- **Windows non aggiorna, e non riavvia, mentre il PC resta sveglio** (acceso di default): per tutta la sessione gli aggiornamenti vanno in pausa — gli stessi valori che scrive la pagina "Windows Update" delle impostazioni, senza bisogno dell'amministratore — e Moka chiede a Windows di non riavviare, con un motivo che compare nella schermata di arresto. Appena la sessione finisce torna tutto com'era, anche se Moka venisse uccisa; e comunque la pausa scade da sola dopo un giorno. Una pausa che avevi già messo tu non viene toccata
 - Tasti rapidi globali per accendere, spegnere e spegnere lo schermo
 - Regole automatiche: sveglio mentre un programma è aperto, sei in chiamata, c'è un'app a schermo intero, il PC è in carica, è collegato un monitor esterno, c'è un download in corso, il processore è occupato, è collegato un disco USB, sei su una certa rete, o in una fascia oraria. Ogni regola ha la sua modalità e il suo "…e poi", il pannello dice perché è acceso, e le regole si sospendono per un'ora con un clic
 - Presenza (facoltativa, spenta di default): dopo un minuto senza toccare niente preme F15, così niente salvaschermo, blocco per inattività o stato "Assente". Il blocco per inattività esiste per sicurezza: sui PC di lavoro può violare le regole aziendali
@@ -80,6 +81,7 @@ moka --quit           chiude Moka
 moka --then sleep     a fine sessione: display-off, lock, sleep, hibernate, shutdown
 moka --lid / --no-lid questa sessione resta accesa (o no) a coperchio chiuso
 moka --restore-lid    rimette l'impostazione del coperchio com'era
+moka --restore-updates toglie la pausa degli aggiornamenti di Windows
 moka --while ffmpeg.exe    sveglio finché gira ffmpeg (con --screen e --then)
 moka --while-pid 1234      sveglio finché vive il processo 1234
 moka --pause-rules         sospende le regole per un'ora (--pause-rules=2h)
@@ -162,6 +164,7 @@ The portable build is fine for a quick try. If you delete it while it is keeping
 - Battery cutoff: the session ends on its own below a set charge
 - "…and then": at the end of a session turn off the screen, lock, sleep, hibernate or shut down, always after a cancellable countdown; and 5 minutes before, a warning with "+30 min". Choose it once in Settings ("When a session ends") or just for the current session from the panel. By itself, when the time is up, Moka does nothing: it lets the PC go and Windows behaves as usual
 - "Lock the PC now": locks the screen while the PC stays awake, so whatever it is doing keeps going (also `moka --lock`)
+- **Windows doesn't update, or restart, while the PC stays awake** (on by default): for the whole session updates are paused — the same values the Windows Update settings page writes, no administrator needed — and Moka asks Windows not to restart, with a reason that shows up on the shutdown screen. As soon as the session ends everything goes back as it was, even if Moka is killed; and the pause expires on its own after a day. A pause you set yourself is never touched
 - Global keyboard shortcuts to turn it on, off, and turn off the screen
 - Automatic rules: stay awake while a program is open, you're in a call, a full-screen app is showing, the PC is charging, an external monitor is connected, a download is running, the processor is busy, a USB drive is plugged in, you're on a given network, or during a time window. Each rule has its own mode and "…and then", the panel says why it's on, and rules pause for an hour with one click
 - Presence (optional, off by default): after a minute without input it presses F15, so no screen saver, idle lock or "Away" status. The idle lock exists for security: on work PCs this may break company rules
@@ -196,6 +199,7 @@ moka --quit           quit Moka
 moka --then sleep     at the end: display-off, lock, sleep, hibernate, shutdown
 moka --lid / --no-lid this session stays on (or not) with the lid closed
 moka --restore-lid    put the lid setting back as it was
+moka --restore-updates remove the Windows Update pause
 moka --while ffmpeg.exe    awake while ffmpeg runs (with --screen and --then)
 moka --while-pid 1234      awake while process 1234 is alive
 moka --pause-rules         pause rules for an hour (--pause-rules=2h)

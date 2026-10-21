@@ -248,6 +248,16 @@
   "settings.rules_resume": "Riprendi le regole",
   "settings.rules_pause": "Sospendi per un'ora",
 
+  "settings.section_updates_block": "Aggiornamenti di Windows",
+  "settings.block_updates": "Non aggiornare Windows mentre il PC resta sveglio",
+  "settings.block_updates_hint": "Mette in pausa gli aggiornamenti per tutta la sessione e chiede a Windows di non riavviare: quello che stai facendo non si trova un riavvio a metà. Appena la sessione finisce torna tutto com'era, anche se Moka venisse chiusa di colpo.",
+  "settings.updates_idle": "Si attiva quando Moka tiene sveglio il PC.",
+  "settings.updates_paused": "Aggiornamenti in pausa fino alle {when}: finché la sessione dura, Moka la rinnova.",
+  "settings.updates_already_paused": "Gli aggiornamenti erano già in pausa fino alle {when}: Moka non tocca la tua scelta.",
+  "settings.updates_failed": "Non è stato possibile metterli in pausa ({error}). Moka chiede comunque a Windows di non riavviare.",
+
+  "updates.block_reason": "Moka sta tenendo sveglio il PC: una sessione è in corso.",
+
   "settings.section_presence": "Presenza",
   "settings.presence": "Risulta presente mentre Moka è accesa",
   "settings.presence_hint": "Dopo un minuto senza toccare niente, Moka preme F15, un tasto che non esiste sulle tastiere comuni: niente salvaschermo, niente blocco per inattività, niente «assente» su Teams o Slack.",

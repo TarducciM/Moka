@@ -109,6 +109,11 @@ pub struct Settings {
     pub rules: Vec<Rule>,
     /// Presenza: F15 quando l'utente è inattivo. Spenta di default.
     pub presence: bool,
+    /// Mentre il PC è tenuto sveglio, mette in pausa gli aggiornamenti di
+    /// Windows e chiede di non riavviare. Accesa di default: chi tiene sveglio
+    /// il PC lo fa per finire qualcosa, e un riavvio a metà è il modo peggiore
+    /// di perderla.
+    pub block_updates: bool,
 }
 
 impl Default for Settings {
@@ -130,6 +135,7 @@ impl Default for Settings {
             lock_on_screen_off: false,
             rules: Vec::new(),
             presence: false,
+            block_updates: true,
         }
     }
 }
@@ -177,6 +183,7 @@ impl Settings {
             lock_on_screen_off: bool_field(v, "lockOnScreenOff").unwrap_or(d.lock_on_screen_off),
             rules: rules::from_value(v.get("rules")),
             presence: bool_field(v, "presence").unwrap_or(d.presence),
+            block_updates: bool_field(v, "blockUpdates").unwrap_or(d.block_updates),
         }
         .dedup_shortcuts()
     }

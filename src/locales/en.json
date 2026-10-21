@@ -248,6 +248,16 @@
   "settings.rules_resume": "Resume rules",
   "settings.rules_pause": "Pause for an hour",
 
+  "settings.section_updates_block": "Windows updates",
+  "settings.block_updates": "Don't update Windows while the PC stays awake",
+  "settings.block_updates_hint": "Pauses updates for the whole session and asks Windows not to restart, so what you are doing doesn't meet a reboot halfway. As soon as the session ends everything goes back as it was, even if Moka is killed.",
+  "settings.updates_idle": "Turns on while Moka is keeping the PC awake.",
+  "settings.updates_paused": "Updates paused until {when}: Moka renews it as long as the session lasts.",
+  "settings.updates_already_paused": "Updates were already paused until {when}: Moka leaves your choice alone.",
+  "settings.updates_failed": "They could not be paused ({error}). Moka still asks Windows not to restart.",
+
+  "updates.block_reason": "Moka is keeping the PC awake: a session is running.",
+
   "settings.section_presence": "Presence",
   "settings.presence": "Stay present while Moka is on",
   "settings.presence_hint": "After a minute without input, Moka presses F15, a key that doesn't exist on common keyboards: no screen saver, no idle lock, no \"away\" on Teams or Slack.",

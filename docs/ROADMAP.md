@@ -1,6 +1,6 @@
 # Moka — piano di progetto
 
-> **Stato: 0.6.1** (la 0.5.0 è la release pubblicata; la 0.6.0 aggiunge le opzioni di fine sessione e "Blocca il PC ora", la 0.6.1 rifà le pagine dell'installer). Tutto il codice fino alla 0.5 (diagnostica, regole su USB e rete, memoria del pannello) è scritto e provato su LPT-MIKI; la pubblicazione della prima release aspetta lo spike e i passi di Michele in [`RELEASE.md`](RELEASE.md). In dettaglio: Il nucleo della 0.1 e tutta la parte della 0.2 che non dipende dallo spike sono scritti e verificati su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md). Lo spike decide **quali richieste** tenere a coperchio chiuso, non come si cambia e si rimette l'impostazione di Windows, che è già fatto e provato.
+> **Stato: 0.7.0** (0.5.0 prima release pubblica; 0.6.0 opzioni di fine sessione e "Blocca il PC ora"; 0.6.1 pagine dell'installer; 0.7.0 blocco degli aggiornamenti di Windows durante una sessione). Tutto il codice fino alla 0.5 (diagnostica, regole su USB e rete, memoria del pannello) è scritto e provato su LPT-MIKI; la pubblicazione della prima release aspetta lo spike e i passi di Michele in [`RELEASE.md`](RELEASE.md). In dettaglio: Il nucleo della 0.1 e tutta la parte della 0.2 che non dipende dallo spike sono scritti e verificati su LPT-MIKI (vedi "Verifiche su LPT-MIKI"). Manca lo spike sullo standby moderno, che richiede una persona davanti al portatile: procedura in [`SPIKE.md`](SPIKE.md). Lo spike decide **quali richieste** tenere a coperchio chiuso, non come si cambia e si rimette l'impostazione di Windows, che è già fatto e provato.
 >
 > Questo file è il punto di ripresa: chi riprende il lavoro, da qualunque PC, parte da qui. Va aggiornato a ogni passaggio significativo, insieme a `CHANGELOG.md`.
 >
@@ -122,6 +122,15 @@ Serve un PC Windows con la toolchain Tauri. **Il primo comando è `hostname`**, 
 | `--while` / `--while-pid` | Regole temporanee, mai salvate, che vivono finché vive il processo. Se il processo non compare entro 10 s la regola si scarta con una notifica ("non è in esecuzione"). |
 | Suggerimenti nel modulo | I programmi con una finestra visibile, meno quelli che ospitano la shell (`applicationframehost.exe`, `textinputhost.exe`…): il campo resta libero, l'elenco è solo un aiuto. |
 | Presenza | Controllo ogni 10 s: F15 solo se Moka sta tenendo sveglio il PC e l'utente è fermo da almeno 50 s. Spenta di default, con l'avviso obbligatorio accanto all'interruttore. |
+
+### Decisioni prese bloccando gli aggiornamenti (0.7.0, 2026-10-21)
+
+- **Accesa di default**, a differenza della Presenza. La Presenza tocca una difesa di sicurezza (il blocco per inattività) e sui PC di lavoro può violare le regole aziendali, quindi parte spenta; qui invece il comportamento predefinito di Windows — riavviare quando gli pare — è esattamente ciò contro cui si accende Moka. Resta un interruttore, e si spegne con un clic.
+- **24 ore, non "finché dura la sessione".** La pausa vuole una scadenza assoluta, e una sessione "finché non lo spegni" non ne ha. Una finestra corta rinnovata ogni volta è la rete che regge anche se Moka sparisce senza poter rimettere niente: al massimo si perde un giorno di aggiornamenti, e succede solo se saltano anche `RunOnce` e il registro su disco.
+- **Si riscrive solo sotto le 12 ore rimaste**, non a ogni riconciliazione: `apply()` gira a ogni cambio di stato, e scrivere il registro di Windows ogni volta sarebbe rumore inutile.
+- **Non si tocca `UpdatePolicy\Settings`** (`PausedQualityStatus`, `PausedQualityDate`, …), che è la copia del servizio. Scriverla a mano è il modo documentato nei forum per ritrovarsi una pausa che non si toglie più: Moka scrive solo ciò che scrive l'interfaccia di Windows.
+- **I due ripristini restano due comandi separati** (`--restore-lid`, `--restore-updates`) con due voci `RunOnce` distinte: sono due modifiche indipendenti, e una che fallisce non deve portarsi dietro l'altra.
+- **L'interfaccia non promette l'impossibile.** "Chiede a Windows di non riavviare" è vero; "il PC non si riavvia" non lo sarebbe, e la prima volta che un arresto forzato chiudesse tutto sarebbe Moka ad aver mentito.
 
 ### Decisioni prese rifacendo l'installer (0.6.1, 2026-09-28)
 
@@ -265,6 +274,17 @@ Blocca lo schermo lasciando il PC sveglio: il download continua, tu vai via. Sta
 Quando Moka è già installata, l'installer apre una pagina **"Moka è già installato"** con tre scelte dichiarate: *Ripara* (che diventa *Aggiorna alla X* o *Torna alla versione X* secondo la versione trovata), *Disinstalla e poi installa da capo*, *Disinstalla e fermati qui*. Sotto, la riga che dice cosa resta: le impostazioni stanno fuori dalla cartella del programma e sopravvivono alla disinstallazione, che rimette com'era l'impostazione di Windows per il coperchio.
 
 Le tre caselle — avvio automatico, collegamento nel menu Start, collegamento sul desktop — stanno tutte nella pagina "Attività aggiuntive" e partono dallo stato attuale della macchina, così un aggiornamento non rimette quello che l'utente aveva tolto. Le decisioni dietro stanno sotto, in "Decisioni prese rifacendo l'installer".
+
+### Aggiornamenti di Windows (0.7.0)
+
+Mentre Moka tiene sveglio il PC, Windows non deve né installare aggiornamenti né riavviare. Opzione in Impostazioni → "Aggiornamenti di Windows", **accesa di default**. Due strati, perché nessuno dei due basta da solo:
+
+1. **La pausa degli aggiornamenti.** Moka scrive i sei valori `Pause*` in `HKLM\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings` — gli stessi che scrive la pagina "Windows Update" delle impostazioni — con scadenza a 24 ore, rinnovata finché la sessione dura. Impedisce che arrivino aggiornamenti nuovi.
+2. **Il motivo di blocco del riavvio** (`ShutdownBlockReasonCreate` sulla finestra del pannello). Copre quello che la pausa non può più fermare: un aggiornamento già scaricato che aspetta solo il riavvio. Non è una garanzia — un arresto forzato chiude lo stesso — e l'interfaccia lo dice.
+
+Le reti di sicurezza sono quelle del coperchio, per lo stesso motivo (vedi "Come si cambia l'impostazione senza mai lasciarla cambiata"): registro su disco prima di toccare Windows, ripristino solo se il valore è ancora il nostro, `RunOnce` al prossimo accesso, più una quarta che il coperchio non ha — **la pausa scade da sola dopo un giorno**, quindi anche nel caso in cui tutto il resto fallisse il danno si chiude da sé. Il disinstallatore (NSIS e MSI) esegue `--restore-updates` accanto a `--restore-lid`.
+
+**Una pausa già presente non si tocca**, né per accorciarla né per allungarla: è una scelta di chi usa il PC. L'interfaccia distingue i tre casi — in pausa per mano di Moka, già in pausa per mano di altri, non riuscita — invece di dire "fatto" e basta.
 
 ### Protezioni
 
@@ -712,6 +732,14 @@ Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
 44. La classe `.toast` esisteva già (il messaggio "Salvato" delle Impostazioni, fisso e trasparente): la finestrella degli avvisi la ereditava e restava invisibile. Lezione generale: un foglio di stile condiviso fra più pagine vuole nomi di classe che non si pestino.
 45. `focusable: false` nella configurazione della finestra la mostra senza rubare il focus a chi sta scrivendo: giusto per un avviso che compare da solo.
 
+### Trovate bloccando gli aggiornamenti (0.7.0, 2026-10-21)
+
+73. `HKLM\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings` **si scrive senza amministratore**, e non per sbaglio: il suo elenco di controllo dà `SetValue, CreateSubKey, ReadKey` a `BUILTIN\Users`. È così perché la pagina "Windows Update" delle impostazioni gira come utente normale e deve poterci scrivere. Verificato su LPT-MIKI da un processo non elevato, con un utente che **non è amministratore**: `Get-Acl`, apertura in scrittura riuscita e una scrittura vera (valore di prova scritto, riletto e cancellato). Senza questa verifica la funzione sembrava richiedere l'elevazione, e sarebbe nata con un prompt UAC a ogni sessione — cioè inutilizzabile.
+74. `ShutdownBlockReasonCreate` si può chiamare **solo dal thread che ha creato la finestra**, altrimenti fallisce con `ERROR_ACCESS_DENIED` (sta scritto nella documentazione, ed è la riga che si salta). In Moka passa da `refresh`, che gira già sul thread principale: da `apply()` sotto il lock non funzionerebbe, e non darebbe nemmeno un errore visibile.
+75. `--restore-lid` e `--restore-updates` cercano il registro **sempre** in `%APPDATA%\com.moka.app`, perché l'identifier è una costante di `lib.rs`. Da un'istanza di sviluppo (`com.moka.dev`, trappola 49) non ripristinano niente **e** cancellano la voce `RunOnce` di quell'eseguibile: sembra un ripristino rotto e invece è il percorso sbagliato. Per provare davvero il ripristino da disco si copia il registro in `com.moka.app` e si lancia il comando: il registro di Windows è lo stesso per tutte e due.
+76. La copia del servizio (`HKLM\SOFTWARE\Microsoft\WindowsUpdate\UpdatePolicy\Settings`: `PausedQualityStatus`, `PausedQualityDate`, …) **resta indietro** rispetto a quella scritta dall'interfaccia: su LPT-MIKI diceva ancora 11 ottobre mentre la pagina delle impostazioni mostrava già la pausa nuova. Non è un difetto da "sistemare" scrivendoci dentro: è roba del servizio.
+77. Che la pausa **funzioni** non lo dice il registro, lo dice Windows: la pagina "Windows Update" delle impostazioni con scritto "Gli aggiornamenti sono stati sospesi fino al …". È l'unico controllo che non sia circolare, perché guarda la stessa cosa da un'altra parte — e costa dieci secondi.
+
 ### Trovate rifacendo l'installer (0.6.1, 2026-09-28)
 
 66. In Git Bash `./setup.exe /S` non fa un'installazione silenziosa: MSYS riscrive `/S` in `S:/`, l'installer non riconosce il parametro e **si apre in modo interattivo** — cioè resta lì ad aspettare, o installa se qualcuno preme Invio. È la trappola 53 (`powercfg /lastwake`) in un altro punto, ma qui il prezzo è un'installazione vera. Da PowerShell: `Start-Process $setup -ArgumentList '/S'`.
@@ -790,7 +818,7 @@ Nessun database: le impostazioni sono un file JSON. Più leggero di ClipVault.
   - pagina "Attività aggiuntive": avvio automatico, collegamento nel menu Start, collegamento sul desktop — tre caselle che partono dallo stato attuale della macchina (0.6.1)
   - template `installer.nsi` e `main.wxs` ripresi da ClipVault 0.3.9, con le modifiche marcate `Moka:`
   - in modalità silenziosa e passiva (gli aggiornamenti automatici) le pagine vengono saltate: un aggiornamento non cambia mai né l'avvio automatico né i collegamenti
-  - il disinstallatore esegue `moka.exe --restore-lid` prima di togliere i file, così non resta mai l'impostazione del coperchio cambiata
+  - il disinstallatore esegue `moka.exe --restore-lid` e `moka.exe --restore-updates` prima di togliere i file, così non restano mai né l'impostazione del coperchio cambiata né gli aggiornamenti in pausa
 - **Auto-update**:
   - chiave minisign generata alla prima release pubblica (0.3) con `tauri signer generate`
   - chiave privata come secret `TAURI_SIGNING_PRIVATE_KEY` del repo, più un backup fuori dal repo, mai dentro

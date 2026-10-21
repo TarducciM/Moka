@@ -15,6 +15,7 @@ pub mod session;
 pub mod settings;
 pub mod sys;
 pub mod sysevents;
+pub mod wublock;
 
 mod commands;
 mod control;
@@ -52,6 +53,17 @@ pub fn restore_lid_and_exit() -> ! {
     if let Some(appdata) = std::env::var_os("APPDATA") {
         let dir = std::path::PathBuf::from(appdata).join(IDENTIFIER);
         lidoverride::restore_from_disk(dir);
+    }
+    std::process::exit(0);
+}
+
+/// `moka --restore-updates`: toglie la pausa degli aggiornamenti di Windows da
+/// un registro lasciato lì ed esce. Stessa strada di `--restore-lid`: lo
+/// lanciano `RunOnce` al prossimo accesso e il disinstallatore.
+pub fn restore_updates_and_exit() -> ! {
+    if let Some(appdata) = std::env::var_os("APPDATA") {
+        let dir = std::path::PathBuf::from(appdata).join(IDENTIFIER);
+        wublock::restore_from_disk(dir);
     }
     std::process::exit(0);
 }
@@ -135,6 +147,7 @@ pub fn run() {
                 settings: dir.join("settings.json"),
                 state: dir.join("state.json"),
                 lid_log: dir.join(lidoverride::FILE_NAME),
+                updates_log: dir.join(wublock::FILE_NAME),
             };
             let version = app.package_info().version.to_string();
             let core = Core::load(paths, version, sys::now());

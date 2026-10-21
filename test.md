@@ -119,6 +119,17 @@
 - [x] Impostazione di Windows per il coperchio invariata (CA e CC = 1, "sospendi") e nessun valore `MokaRestoreLid-*` rimasto in `RunOnce`
 - [x] `latest.json` servito da `releases/latest/download` dice 0.6.1 e porta la firma
 
+2026-10-21, **LPT-MIKI**, Moka 0.7.0 — blocco degli aggiornamenti di Windows, provato su una sessione vera.
+
+- [x] Sessione accesa: i sei valori `Pause*` in `HKLM\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings` passano a "da adesso a +24 h"
+- [x] **Lo dice Windows, non Moka**: la pagina Impostazioni → Windows Update mostra "Gli aggiornamenti sono stati sospesi fino al 22/10/2026" e il pulsante "Riprendi aggiornamenti"
+- [x] Il motivo di blocco del riavvio risulta registrato sulla finestra di Moka (`ShutdownBlockReasonQuery`): "Moka sta tenendo sveglio il PC: una sessione è in corso."
+- [x] In `RunOnce` compare `MokaRestoreUpdates-<impronta>` con il percorso dell'eseguibile giusto, **accanto** e non al posto di `MokaRestoreLid-<impronta>` di un'altra Moka
+- [x] Sessione spenta: tutti e sei i valori tornano **identici** a prima (confrontati uno per uno con l'istantanea presa all'inizio), il motivo di blocco sparisce, `RunOnce` si ripulisce
+- [x] Moka uccisa da Gestione attività con la pausa attiva: pausa e `RunOnce` restano; `moka --restore-updates` rimette tutti e sei i valori e cancella il registro su disco
+- [x] Una pausa già presente (messa prima, in questo caso scaduta l'11 ottobre) viene conservata e rimessa tale e quale
+- [x] 93 test Rust verdi, 11 nuovi sul modulo: pausa altrui, pausa scaduta, utente che cambia la pausa a mano, scrittura negata, chiave illeggibile, registro corrotto
+
 ## Da verificare
 
 Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) oppure un altro PC.
@@ -138,6 +149,14 @@ Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) opp
 - [ ] Scala 100%, 125%, 150%: icona nitida, pannello posizionato bene
 - [ ] Installer NSIS e MSI (workflow `build`): installazione, avvio, disinstallazione
 - [ ] Installer NSIS interattivo: la pagina "Attività aggiuntive" in italiano, la casella dell'avvio automatico funziona
+
+### Blocco degli aggiornamenti (0.7.0)
+
+- [ ] **Un riavvio vero di Windows Update**: con una sessione accesa, un aggiornamento già scaricato non deve far riavviare il PC da solo. È l'unica prova che conta davvero e serve un aggiornamento in attesa: da fare quando capita, non si può provocare
+- [ ] La schermata di arresto di Windows mostra il motivo di Moka quando si prova a riavviare a mano con una sessione accesa (non provato: riavvierebbe il PC di chi lavora)
+- [ ] Con l'opzione spenta, nessun valore `Pause*` viene toccato e nessun motivo di blocco viene registrato
+- [ ] Su un PC con criteri aziendali su Windows Update (chiave non scrivibile): Moka lo dice in Impostazioni invece di far credere di aver bloccato
+- [ ] Disinstallazione con la pausa attiva: l'installer esegue anche `--restore-updates` e gli aggiornamenti tornano liberi
 
 ### Installer (0.6.1) — le scelte portate fino in fondo
 

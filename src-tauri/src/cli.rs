@@ -18,6 +18,7 @@
 //!                           shutdown | none (da solo: vale per la sessione in corso)
 //! moka --lid / --no-lid     questa sessione resta accesa (o no) a coperchio chiuso
 //! moka --restore-lid        rimette l'impostazione del coperchio com'era, poi esce
+//! moka --restore-updates    toglie la pausa degli aggiornamenti di Windows, poi esce
 //! moka --while ffmpeg.exe   sveglio finché gira ffmpeg (si combina con --screen
 //!                           e --then; non si salva fra le regole)
 //! moka --while-pid 1234     sveglio finché vive il processo 1234
@@ -59,6 +60,9 @@ pub enum Action {
     /// Rimette l'impostazione del coperchio da un registro lasciato lì ed
     /// esce, senza avviare l'app (lo usano `RunOnce` e il disinstallatore).
     RestoreLid,
+    /// Toglie la pausa degli aggiornamenti di Windows da un registro lasciato
+    /// lì ed esce. Stessa strada di `RestoreLid`.
+    RestoreUpdates,
     /// Usato dall'installer (0.3): applica la scelta sull'avvio automatico ed esce.
     Autostart(bool),
     /// `--while` / `--while-pid`: una regola che vive finché vive il processo.
@@ -150,6 +154,7 @@ where
             "--lock" => explicit = Some(Action::Lock),
             "--quit" => explicit = Some(Action::Quit),
             "--restore-lid" => explicit = Some(Action::RestoreLid),
+            "--restore-updates" => explicit = Some(Action::RestoreUpdates),
             "--lid" => lid = Some(true),
             "--no-lid" => lid = Some(false),
             "--enable-autostart" => explicit = Some(Action::Autostart(true)),
@@ -284,6 +289,7 @@ mod tests {
         assert_eq!(action(&["--lock"]), Action::Lock);
         assert_eq!(action(&["--quit"]), Action::Quit);
         assert_eq!(action(&["--restore-lid"]), Action::RestoreLid);
+        assert_eq!(action(&["--restore-updates"]), Action::RestoreUpdates);
         assert_eq!(action(&["--enable-autostart"]), Action::Autostart(true));
         assert_eq!(action(&["--disable-autostart"]), Action::Autostart(false));
     }

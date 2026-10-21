@@ -23,6 +23,7 @@ use crate::state::{AppState, Core, Notice};
 use crate::sys;
 use crate::sysevents::SysEvent;
 use crate::tray::{self, MenuView, TrayMenu};
+use crate::wublock;
 
 pub const TRAY_ID: &str = "moka";
 
@@ -223,7 +224,8 @@ pub fn apply_cli(app: &AppHandle, action: Action, from_second_instance: bool) {
             with_core(app, |c| c.resume_rules(sys::now()));
         }
         // Gestita in main.rs, prima di avviare Tauri: qui non arriva mai.
-        Action::RestoreLid => {}
+        // Le due strade di ripristino si gestiscono in `main`, prima di Tauri.
+        Action::RestoreLid | Action::RestoreUpdates => {}
     }
 }
 
@@ -277,6 +279,7 @@ fn refresh(app: &AppHandle, emit: bool) {
         )
     };
     sync_toast(app, toast.is_some());
+    sync_shutdown_block(app);
     let Some(tray_icon) = app.tray_by_id(TRAY_ID) else {
         return;
     };
@@ -347,6 +350,45 @@ fn refresh(app: &AppHandle, emit: bool) {
 /// la creazione di una finestra va in deadlock su Windows.
 pub const TOAST_LABEL: &str = "toast";
 static TOAST_CREATING: AtomicBool = AtomicBool::new(false);
+
+/// Dice a Windows "non è il momento di riavviare" finché Moka tiene sveglio il
+/// PC, e smette appena la sessione finisce. Gira **sul thread principale**
+/// (`refresh`), che è l'unico da cui si può chiamare per la finestra del
+/// pannello: da un altro thread `ShutdownBlockReasonCreate` fallisce e basta.
+fn sync_shutdown_block(app: &AppHandle) {
+    let st = app.state::<AppState>();
+    let wanted = st.core.lock().unwrap().shutdown_block_reason();
+    let mut ui = st.ui.lock().unwrap();
+    if ui.shutdown_block == wanted {
+        return;
+    }
+    let Some(hwnd) = app
+        .get_webview_window(popover::LABEL)
+        .and_then(|w| w.hwnd().ok())
+    else {
+        return;
+    };
+    let hwnd = hwnd.0 as isize;
+    // Il motivo si può solo creare o distruggere: per cambiarlo (la lingua, o
+    // una sessione diversa) si toglie e si rimette.
+    if ui.shutdown_block.is_some() {
+        wublock::set_shutdown_block(hwnd, None);
+    }
+    match &wanted {
+        Some(reason) => {
+            if wublock::set_shutdown_block(hwnd, Some(reason)) {
+                ui.shutdown_block = wanted;
+            } else {
+                // Non è grave (la pausa degli aggiornamenti è l'altro strato),
+                // ma non va nascosto: senza, un riavvio può arrivare in
+                // silenzio.
+                eprintln!("moka: Windows non ha accettato il motivo di blocco del riavvio");
+                ui.shutdown_block = None;
+            }
+        }
+        None => ui.shutdown_block = None,
+    }
+}
 
 fn sync_toast(app: &AppHandle, want: bool) {
     match (want, app.get_webview_window(TOAST_LABEL)) {

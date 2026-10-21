@@ -408,6 +408,14 @@ pub struct SettingsDto {
     pub day_labels: Vec<String>,
     pub then_choices: Vec<ThenChoice>,
     pub presence: bool,
+    /// L'opzione "blocca gli aggiornamenti mentre il PC resta sveglio".
+    pub block_updates: bool,
+    /// Com'è andata davvero: "idle", "ours", "foreign", "failed".
+    pub updates_state: String,
+    /// Fino a quando risultano in pausa (ms UTC), se lo sono.
+    pub updates_until_ms: Option<i64>,
+    /// Perché non si è potuto metterli in pausa.
+    pub updates_error: Option<String>,
 }
 
 /// Una regola come la vede la pagina: testi già tradotti.
@@ -460,6 +468,7 @@ pub struct SettingsPatch {
     pub shortcut_toggle: Option<String>,
     pub shortcut_screen_off: Option<String>,
     pub presence: Option<bool>,
+    pub block_updates: Option<bool>,
 }
 
 /// I tipi di regola che hanno senso su questo PC: "in carica" solo con una
@@ -618,6 +627,10 @@ fn settings_dto(app: &AppHandle) -> SettingsDto {
             })
             .collect(),
         presence: core.settings.presence,
+        block_updates: core.settings.block_updates,
+        updates_state: core.updates.status().code().to_owned(),
+        updates_until_ms: core.updates.status().until_ms(),
+        updates_error: core.updates.status().error().map(str::to_owned),
     }
 }
 
@@ -766,6 +779,9 @@ pub fn update_settings(app: AppHandle, patch: SettingsPatch) -> Result<SettingsD
         }
         if let Some(p) = patch.presence {
             next.presence = p;
+        }
+        if let Some(b) = patch.block_updates {
+            next.block_updates = b;
         }
         core.set_settings(next.dedup_shortcuts())
             .map_err(|e| tv(lang, "settings.save_error", &[("error", &e.to_string())]))

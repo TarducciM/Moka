@@ -28,6 +28,7 @@ use crate::settings::{LidMode, Memory, SavedSession, Settings};
 use crate::sys;
 use crate::sysevents::SysEvent;
 use crate::tray::{IconState, TrayMenu};
+use crate::wublock::{Block, WindowsRegistry};
 
 /// Il conto alla rovescia di "…e poi".
 pub const COUNTDOWN_MS: u64 = 60_000;
@@ -70,6 +71,7 @@ pub struct Paths {
     pub settings: PathBuf,
     pub state: PathBuf,
     pub lid_log: PathBuf,
+    pub updates_log: PathBuf,
 }
 
 /// Le regole sospese dall'utente ("Sospendi per un'ora").
@@ -192,6 +194,8 @@ pub struct Core {
     pub version: String,
     pub lid: LidRuntime,
     pub rules: RulesRuntime,
+    /// La pausa degli aggiornamenti di Windows mentre il PC resta sveglio.
+    pub updates: Block<WindowsRegistry>,
     power: PowerRequest,
     paths: Paths,
     logon_id: u64,
@@ -223,6 +227,7 @@ impl Core {
             lang: Lang::resolve(settings.language),
             lid: LidRuntime::new(paths.lid_log.clone()),
             rules: RulesRuntime::default(),
+            updates: Block::load(WindowsRegistry, paths.updates_log.clone()),
             settings,
             memory,
             session,
@@ -254,6 +259,7 @@ impl Core {
     fn apply(&mut self, now: Now) {
         self.generation += 1;
         self.reconcile_lid(now);
+        self.updates.apply(self.updates_block_wanted(), now);
         let rule_display = self.active_rules().any(|r| r.mode == Mode::Display);
         let (needs, reason) = match &self.session {
             // Nessuna sessione, ma una regola: sveglio per lei.
@@ -864,6 +870,20 @@ impl Core {
     }
 
     /// Presenza: F15 solo se è attiva e Moka sta tenendo sveglio il PC.
+    /// Gli aggiornamenti vanno messi in pausa: l'opzione è accesa e Moka sta
+    /// tenendo sveglio il PC. Un conto alla rovescia non conta: lì la sessione
+    /// è finita e il PC sta per fare ciò che gli è stato chiesto.
+    pub fn updates_block_wanted(&self) -> bool {
+        self.settings.block_updates && self.awake()
+    }
+
+    /// Il motivo da dare a Windows quando chiede di riavviare. Vuoto quando
+    /// non c'è niente da proteggere.
+    pub fn shutdown_block_reason(&self) -> Option<String> {
+        self.updates_block_wanted()
+            .then(|| t(self.lang, "updates.block_reason").to_owned())
+    }
+
     pub fn presence_wanted(&self) -> bool {
         self.settings.presence && self.awake()
     }
@@ -925,6 +945,7 @@ impl Core {
     pub fn shutdown(&mut self) {
         self.lid.overrides.restore_all();
         self.lid.paused = true;
+        self.updates.restore();
         self.power.release();
     }
 
@@ -1335,6 +1356,9 @@ pub struct UiCache {
     pub menu: Option<TrayMenu>,
     pub menu_key: Option<(Lang, Vec<u32>, bool, bool)>,
     pub menu_view: Option<(String, bool, bool, bool, bool)>,
+    /// Il motivo per cui Moka sta chiedendo a Windows di non riavviare, se lo
+    /// sta chiedendo: serve a non ripetere la chiamata ad ogni ridisegno.
+    pub shutdown_block: Option<String>,
 }
 
 pub struct AppState {

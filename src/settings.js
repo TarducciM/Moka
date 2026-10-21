@@ -27,6 +27,7 @@
   const shortcutScreenOff = $("shortcut-screen-off");
   const updateStatus = $("update-status");
   const presence = $("presence");
+  const blockUpdates = $("block-updates");
   const rulesList = $("rules-list");
   const ruleForm = $("rule-form");
   const ruleKind = $("rule-kind");
@@ -89,7 +90,45 @@
     }
 
     presence.checked = s.presence;
+    blockUpdates.checked = s.blockUpdates;
+    renderUpdatesState(s);
     renderRules(s);
+  }
+
+  // ------------------------------- blocco degli aggiornamenti di Windows
+
+  /// "oggi alle 18:30" se è oggi, altrimenti data e ora per esteso.
+  function whenLabel(ms) {
+    const d = new Date(ms);
+    const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const sameDay = d.toDateString() === new Date().toDateString();
+    return sameDay ? time : `${d.toLocaleDateString()} ${time}`;
+  }
+
+  function renderUpdatesState(s) {
+    const box = $("updates-state");
+    if (!s.blockUpdates) {
+      box.hidden = true;
+      return;
+    }
+    let text = "";
+    switch (s.updatesState) {
+      case "ours":
+        text = I18n.t("settings.updates_paused", { when: whenLabel(s.updatesUntilMs) });
+        break;
+      case "foreign":
+        text = I18n.t("settings.updates_already_paused", {
+          when: whenLabel(s.updatesUntilMs),
+        });
+        break;
+      case "failed":
+        text = I18n.t("settings.updates_failed", { error: s.updatesError || "" });
+        break;
+      default:
+        text = I18n.t("settings.updates_idle");
+    }
+    box.textContent = text;
+    box.hidden = false;
   }
 
   // ------------------------------------------------------------- regole
@@ -417,6 +456,9 @@
     }
   });
   presence.addEventListener("change", () => save({ presence: presence.checked }));
+  blockUpdates.addEventListener("change", () =>
+    save({ blockUpdates: blockUpdates.checked }),
+  );
   $("rule-open").addEventListener("click", () => openRuleForm(true));
   $("rule-cancel").addEventListener("click", () => openRuleForm(false));
   ruleKind.addEventListener("change", showKindFields);

@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-21 — 0.7.0: Windows non aggiorna, e non riavvia, mentre Moka tiene sveglio il PC
+
+Chiesto da Michele: «è necessario che quando Moka è attiva trovi il modo di bloccare gli aggiornamenti di Windows, riavvio compreso». Nuova opzione in Impostazioni → **Aggiornamenti di Windows**, **accesa di default**: chi tiene sveglio il PC lo fa per finire qualcosa, e un riavvio a metà è il modo peggiore di perderla.
+
+Mentre una sessione (o una regola) tiene sveglio il PC, Moka fa due cose insieme:
+
+- **Mette in pausa gli aggiornamenti**, scrivendo gli **stessi identici valori** che scrive la pagina "Windows Update" delle impostazioni quando si sceglie "Sospendi aggiornamenti". Non serve l'amministratore, e non è una scorciatoia: quella chiave dà la scrittura agli utenti normali apposta, perché è la pagina delle impostazioni — che gira come utente — a doverla scrivere.
+- **Chiede a Windows di non riavviare**, con un motivo che compare nella schermata di arresto ("Moka sta tenendo sveglio il PC: una sessione è in corso"). Serve per gli aggiornamenti già scaricati, che la pausa non può più fermare: aspettano solo il riavvio.
+
+**Niente resta bloccato**, con le stesse quattro reti del coperchio: il registro su disco si scrive **prima** di toccare Windows; si rimette com'era **solo** se il valore è ancora quello scritto da Moka; `RunOnce` toglie la pausa al prossimo accesso anche se Moka venisse uccisa; e comunque la pausa scritta **scade da sola dopo un giorno**. Il disinstallatore ora esegue anche `--restore-updates`, come già faceva per il coperchio.
+
+**Una pausa che c'era già non si tocca mai**: né per accorciarla né per allungarla. Se l'hai messa tu dalle impostazioni di Windows, Moka te lo dice e lascia stare.
+
+Verificato su LPT-MIKI con una sessione vera, guardando cosa dice **Windows**, non cosa dice Moka: a sessione accesa la pagina Windows Update dice "Gli aggiornamenti sono stati sospesi fino al 22/10/2026", il motivo di blocco risulta registrato sulla finestra di Moka e in `RunOnce` compare la voce di ripristino; a sessione spenta tutti e sei i valori tornano **identici** a com'erano, il motivo sparisce e `RunOnce` si ripulisce. Provato anche il caso peggiore: Moka uccisa con la pausa attiva, e poi `moka --restore-updates` che rimette tutto dal registro su disco.
+
+**Quello che non promette**, ed è scritto anche nelle Impostazioni: un arresto forzato chiude le app lo stesso. Il motivo di blocco serve a non farsi riavviare di nascosto, non a rendere il PC inarrestabile.
+
+
 ## 2026-10-05 — il README non dice più che Moka è in sviluppo
 
 Nessun cambio di codice dell'app (versione invariata, 0.6.1): il README diceva ancora **"Stato: in sviluppo (0.0.3). Il nucleo funziona; non c'è ancora una release"**, con tre release pubblicate alle spalle — ed era la prima cosa che leggeva chi arrivava dal repo.

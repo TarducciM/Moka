@@ -8,5 +8,8 @@ fn main() {
     if std::env::args().any(|a| a == "--restore-lid") {
         moka_lib::restore_lid_and_exit();
     }
+    if std::env::args().any(|a| a == "--restore-updates") {
+        moka_lib::restore_updates_and_exit();
+    }
     moka_lib::run()
 }
