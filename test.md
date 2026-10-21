@@ -130,6 +130,12 @@
 - [x] Una pausa già presente (messa prima, in questo caso scaduta l'11 ottobre) viene conservata e rimessa tale e quale
 - [x] 93 test Rust verdi, 11 nuovi sul modulo: pausa altrui, pausa scaduta, utente che cambia la pausa a mano, scrittura negata, chiave illeggibile, registro corrotto
 
+2026-10-21, **LPT-MIKI**, Moka 0.7.1 — l'aggiornamento che si piantava.
+
+- [x] Installata la **0.6.1**, poi lanciato l'installer della 0.7.1 in modalità silenziosa: finisce in pochi secondi (con la 0.7.0 restava appeso per sempre su `moka.exe --restore-updates`)
+- [x] Aggiornamento **0.7.0 → 0.7.1**, dove il parametro viene usato davvero: finisce, e non resta nessuna pausa attiva
+- [x] Dopo l'aggiornamento: versione giusta in "App e funzionalità" e nell'eseguibile, impostazioni dell'utente intatte, nessun valore `Pause*` toccato
+
 ## Da verificare
 
 Servono le mani sul PC (clic sull'icona, menu nativo, prompt amministratore) oppure un altro PC.

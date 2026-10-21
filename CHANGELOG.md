@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-21 — 0.7.1: l'aggiornamento alla 0.7.0 si piantava a metà
+
+Trovato dieci minuti dopo aver pubblicato la 0.7.0, aggiornando **per davvero** la Moka installata su questa macchina: l'installer è rimasto fermo per cinque minuti senza dire niente, e sarebbe rimasto fermo per sempre.
+
+La causa, in una riga: l'installer della 0.7.0 esegue `moka.exe --restore-updates` sull'eseguibile **già installato** per riparare un'eventuale pausa lasciata da un crash — ma quel parametro esiste solo dalla 0.7.0. Una Moka precedente non lo riconosce, quindi **si avvia come sempre**, e l'installer resta ad aspettare che finisca: cioè per sempre. Riguarda chiunque aggiorni da una versione precedente, aggiornamento automatico compreso, dove per giunta non si vede nemmeno una finestra ferma.
+
+- **Correzione**: prima di passare quel parametro, l'installer guarda la versione dell'eseguibile che trova (`GetDLLVersion`) e lo usa solo dalla 0.7.0 in su. Le versioni precedenti non hanno niente da ripristinare, quindi non serve chiamarlo; e comunque la Moka nuova, al primo avvio, toglie da sé una pausa lasciata indietro.
+- Verificato su LPT-MIKI nel modo che conta: installata la **0.6.1**, poi aggiornata con l'installer della 0.7.1 — l'installazione finisce in pochi secondi invece di piantarsi, e la pausa non resta attiva. Provato anche l'aggiornamento 0.7.0 → 0.7.1, dove il parametro viene usato davvero.
+
+**La lezione**, che vale per qualunque installer: un parametro nuovo lo riceve sempre il binario **vecchio**, perché è quello che c'è prima dell'aggiornamento. Se il vecchio non lo riconosce e ci fa qualcosa di diverso dall'uscire, l'installer non se ne accorge: aspetta e basta.
+
+
 ## 2026-10-21 — 0.7.0: Windows non aggiorna, e non riavvia, mentre Moka tiene sveglio il PC
 
 Chiesto da Michele: «è necessario che quando Moka è attiva trovi il modo di bloccare gli aggiornamenti di Windows, riavvio compreso». Nuova opzione in Impostazioni → **Aggiornamenti di Windows**, **accesa di default**: chi tiene sveglio il PC lo fa per finire qualcosa, e un riavvio a metà è il modo peggiore di perderla.

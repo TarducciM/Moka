@@ -9,14 +9,40 @@
 ; (--quit rimette tutto), poi i due ripristini riparano un eventuale registro
 ; lasciato da un crash.
 
+; ⚠️ --restore-updates esiste solo dalla 0.7.0. Su una versione precedente
+; quel parametro non viene riconosciuto, Moka **si avvia come sempre**, e
+; `nsExec::Exec` resta ad aspettarla per sempre: l'installer si pianta a metà,
+; e in silenzio, perché succede anche in modalità silenziosa (cioè proprio
+; durante l'aggiornamento automatico). Quindi prima si guarda la versione
+; dell'eseguibile già installato. Succede davvero: è costato un aggiornamento
+; bloccato il 2026-10-21, vedi docs/ROADMAP.md.
+!macro MOKA_RESTORE_UPDATES_IF_SUPPORTED
+  Push $R6
+  Push $R7
+  Push $R8
+  Push $R9
+  GetDLLVersion "$INSTDIR\${MAINBINARYNAME}.exe" $R6 $R7
+  IntOp $R8 $R6 >> 16
+  IntOp $R8 $R8 & 0x0000FFFF ; major
+  IntOp $R9 $R6 & 0x0000FFFF ; minor
+  ${If} $R8 > 0
+  ${OrIf} $R9 >= 7
+    nsExec::Exec '"$INSTDIR\${MAINBINARYNAME}.exe" --restore-updates'
+    Pop $0
+  ${EndIf}
+  Pop $R9
+  Pop $R8
+  Pop $R7
+  Pop $R6
+!macroend
+
 !macro MOKA_CLOSE_CLEANLY
   ${If} ${FileExists} "$INSTDIR\${MAINBINARYNAME}.exe"
     nsExec::Exec '"$INSTDIR\${MAINBINARYNAME}.exe" --quit'
     Pop $0
     nsExec::Exec '"$INSTDIR\${MAINBINARYNAME}.exe" --restore-lid'
     Pop $0
-    nsExec::Exec '"$INSTDIR\${MAINBINARYNAME}.exe" --restore-updates'
-    Pop $0
+    !insertmacro MOKA_RESTORE_UPDATES_IF_SUPPORTED
   ${EndIf}
 !macroend
 
